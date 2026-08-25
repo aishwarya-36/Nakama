@@ -1,4 +1,5 @@
 "use client";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import ThemeToggle from "./ThemeToggle";
@@ -7,50 +8,105 @@ import LogoutButton from "./LogoutButton";
 const NAV_ITEMS = [
   { href: "/home", label: "Home", icon: HomeIcon },
   { href: "/groups", label: "Groups", icon: GroupsIcon },
+  { href: "/people", label: "People", icon: PersonIcon },
   { href: "/expenses", label: "Expenses", icon: ExpensesIcon },
   { href: "/settings", label: "Settings", icon: SettingsIcon },
 ];
 
+const STORAGE_KEY = "sidebar:collapsed";
+const SMALL_SCREEN_QUERY = "(max-width: 767px)";
+
 export default function Sidebar({ userName }: { userName: string }) {
   const pathname = usePathname();
+  const [collapsed, setCollapsed] = useState(false);
+
+  useEffect(() => {
+    const stored = localStorage.getItem(STORAGE_KEY);
+    if (stored !== null) {
+      setCollapsed(stored === "1");
+    } else {
+      setCollapsed(window.matchMedia(SMALL_SCREEN_QUERY).matches);
+    }
+  }, []);
+
+  function toggle() {
+    setCollapsed((prev) => {
+      const next = !prev;
+      localStorage.setItem(STORAGE_KEY, next ? "1" : "0");
+      return next;
+    });
+  }
 
   return (
-    <aside className="flex h-screen w-56 flex-shrink-0 flex-col border-r border-border bg-surface sticky top-0">
+    <aside
+      className={`sticky top-0 flex h-screen flex-shrink-0 flex-col border-r border-border bg-surface transition-[width] duration-150 ${
+        collapsed ? "w-16" : "w-56"
+      }`}
+    >
       <div className="flex items-center gap-2 border-b border-border px-4 py-4">
-        <div className="flex h-8 w-8 items-center justify-center rounded-md bg-primary text-sm font-bold text-primary-contrast">
+        <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-md bg-primary text-sm font-bold text-primary-contrast">
           {userName.charAt(0).toUpperCase()}
         </div>
-        <span className="text-sm font-semibold text-text">Nakama</span>
+        {!collapsed && <span className="truncate text-sm font-semibold text-text">Nakama</span>}
+        <button
+          onClick={toggle}
+          title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+          aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+          className="ml-auto flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-md text-text-faint hover:bg-surface-secondary hover:text-text"
+        >
+          <svg
+            width="14"
+            height="14"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            className={`transition-transform ${collapsed ? "rotate-180" : ""}`}
+          >
+            <path d="M15 18l-6-6 6-6" />
+          </svg>
+        </button>
       </div>
 
       <nav className="flex-1 space-y-1 p-3">
         {NAV_ITEMS.map((item) => {
-          const active =
-            pathname === item.href || pathname.startsWith(item.href + "/");
+          const active = pathname === item.href || pathname.startsWith(item.href + "/");
           const Icon = item.icon;
           return (
             <Link
               key={item.href}
               href={item.href}
+              title={collapsed ? item.label : undefined}
               className={`flex items-center gap-2.5 rounded-md px-3 py-2 text-sm font-medium transition-colors ${
+                collapsed ? "justify-center" : ""
+              } ${
                 active
                   ? "bg-primary-tint text-primary"
                   : "text-text-muted hover:bg-surface-secondary hover:text-text"
               }`}
             >
               <Icon />
-              {item.label}
+              {!collapsed && item.label}
             </Link>
           );
         })}
       </nav>
 
       <div className="border-t border-border p-3">
-        <div className="mb-2 flex items-center justify-between px-1">
-          <span className="truncate text-sm text-text-muted">{userName}</span>
-          <ThemeToggle />
-        </div>
-        <LogoutButton />
+        {collapsed ? (
+          <div className="flex flex-col items-center gap-2">
+            <ThemeToggle />
+            <LogoutButton iconOnly />
+          </div>
+        ) : (
+          <>
+            <div className="mb-2 flex items-center justify-between px-1">
+              <span className="truncate text-sm text-text-muted">{userName}</span>
+              <ThemeToggle />
+            </div>
+            <LogoutButton />
+          </>
+        )}
       </div>
     </aside>
   );
@@ -83,6 +139,15 @@ function GroupsIcon() {
       <path d="M2 20c0-3.3 3.1-6 7-6s7 2.7 7 6" />
       <circle cx="17" cy="8" r="2.5" />
       <path d="M16.5 14.2c2.6.5 4.5 2.6 4.5 5.8" />
+    </svg>
+  );
+}
+
+function PersonIcon() {
+  return (
+    <svg {...iconProps()}>
+      <circle cx="12" cy="8" r="4" />
+      <path d="M4 21c0-4.4 3.6-8 8-8s8 3.6 8 8" />
     </svg>
   );
 }

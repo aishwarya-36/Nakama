@@ -2,18 +2,18 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import PersonPicker, { PersonValue } from "./PersonPicker";
+import { useToast } from "./ToastProvider";
 
 export default function AddMemberForm({ groupId }: { groupId: string }) {
   const router = useRouter();
+  const toast = useToast();
   const [person, setPerson] = useState<PersonValue>({ name: "", baseCurrency: "USD" });
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!person.name.trim()) return;
     setLoading(true);
-    setError("");
     const res = await fetch(`/api/groups/${groupId}/members`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -26,9 +26,10 @@ export default function AddMemberForm({ groupId }: { groupId: string }) {
     setLoading(false);
     if (!res.ok) {
       const data = await res.json().catch(() => ({}));
-      setError(data.error || "Couldn't add member");
+      toast.error(data.error || "Couldn't add member");
       return;
     }
+    toast.success(`${person.name.trim()} added to group`);
     setPerson({ name: "", baseCurrency: "USD" });
     router.refresh();
   }
@@ -43,7 +44,6 @@ export default function AddMemberForm({ groupId }: { groupId: string }) {
       >
         Add
       </button>
-      {error && <span className="text-xs text-error">{error}</span>}
     </form>
   );
 }

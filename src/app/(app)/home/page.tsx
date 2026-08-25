@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { getSessionFromCookies } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import OverviewCards from "@/components/OverviewCards";
+import AddDirectExpenseButton from "@/components/AddDirectExpenseButton";
 
 export default async function HomePage() {
   const session = getSessionFromCookies();
@@ -20,7 +21,10 @@ export default async function HomePage() {
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-8">
-      <h1 className="mb-1 text-2xl font-semibold text-text">Welcome back, {user.name}</h1>
+      <div className="mb-1 flex items-start justify-between gap-3">
+        <h1 className="text-2xl font-semibold text-text">Welcome back, {user.name}</h1>
+        <AddDirectExpenseButton userName={user.name} />
+      </div>
       <p className="mb-6 text-sm text-text-muted">
         Here's where things stand across all your groups.
       </p>

@@ -10,7 +10,7 @@ export async function GET() {
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const groups = await prisma.group.findMany({
-    where: { members: { some: { userId: session.userId } } },
+    where: { isPersonal: false, members: { some: { userId: session.userId } } },
     include: { members: true, _count: { select: { expenses: true } } },
     orderBy: { createdAt: "desc" },
   });

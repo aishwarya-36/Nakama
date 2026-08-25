@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { getSessionFromCookies } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import Sidebar from "@/components/Sidebar";
+import ToastProvider from "@/components/ToastProvider";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const session = getSessionFromCookies();
@@ -14,9 +15,11 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   if (!user) redirect("/login");
 
   return (
-    <div className="flex min-h-screen">
-      <Sidebar userName={user.name} />
-      <main className="min-w-0 flex-1">{children}</main>
-    </div>
+    <ToastProvider>
+      <div className="flex min-h-screen">
+        <Sidebar userName={user.name} />
+        <main className="min-w-0 flex-1">{children}</main>
+      </div>
+    </ToastProvider>
   );
 }

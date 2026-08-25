@@ -37,6 +37,8 @@ model Contact {
 model Group {
   id          String        @id @default(uuid())
   name        String
+  isPersonal  Boolean       @default(false) // true = implicit group behind a direct (no-group) expense, hidden from the Groups list
+  personalKey String?       @unique // canonical signature (owner + sorted contact ids) used to find-or-create the implicit group for a given set of people
   createdAt   DateTime      @default(now())
   members     GroupMember[]
   expenses    Expense[]

@@ -5,7 +5,7 @@ import "./globals.css";
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
 
 export const metadata: Metadata = {
-  title: "Splitcheck",
+  title: "Nakama",
   description: "Split expenses with friends, no account required for everyone.",
 };
 
@@ -20,7 +20,11 @@ const THEME_INIT_SCRIPT = `
   })();
 `;
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   return (
     <html lang="en" className={inter.variable}>
       <head>

@@ -2,7 +2,7 @@ import { redirect, notFound } from "next/navigation";
 import Link from "next/link";
 import { getSessionFromCookies } from "@/lib/auth";
 import { prisma } from "@/lib/db";
-import AddExpenseForm from "@/components/AddExpenseForm";
+import AddGroupExpenseButton from "@/components/AddGroupExpenseButton";
 import AddMemberForm from "@/components/AddMemberForm";
 import BalancesPanel from "@/components/BalancesPanel";
 
@@ -31,7 +31,10 @@ export default async function GroupPage({ params }: { params: { id: string } }) 
       <Link href="/groups" className="text-sm text-text-muted hover:text-primary">
         ← All groups
       </Link>
-      <h1 className="mb-6 mt-1 text-2xl font-semibold text-text">{group.name}</h1>
+      <div className="mb-6 mt-1 flex items-start justify-between gap-3">
+        <h1 className="text-2xl font-semibold text-text">{group.name}</h1>
+        <AddGroupExpenseButton groupId={group.id} members={group.members} />
+      </div>
 
       <div className="mb-6 rounded-lg border border-border bg-surface p-5 shadow-sm">
         <div className="mb-3 flex items-center justify-between">
@@ -54,11 +57,6 @@ export default async function GroupPage({ params }: { params: { id: string } }) 
       <div className="mb-6 rounded-lg border border-border bg-surface p-5 shadow-sm">
         <h2 className="mb-3 text-lg font-medium text-text">Balances</h2>
         <BalancesPanel groupId={group.id} defaultCurrency={me?.baseCurrency || "USD"} />
-      </div>
-
-      <div className="mb-6 rounded-lg border border-border bg-surface p-5 shadow-sm">
-        <h2 className="mb-3 text-lg font-medium text-text">Add an expense</h2>
-        <AddExpenseForm groupId={group.id} members={group.members} />
       </div>
 
       <div className="rounded-lg border border-border bg-surface p-5 shadow-sm">
