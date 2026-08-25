@@ -1,8 +1,9 @@
-# Splitcheck (Splitwise-style expense splitter)
+# Nakama (Wisely split)
 
-A simplified Splitwise clone: Next.js (App Router, API routes) + Prisma + PostgreSQL.
+A simplified Expenses app: Next.js (App Router, API routes) + Prisma + PostgreSQL.
 
 ## What's in this version
+
 - Email/password auth (JWT in an httpOnly cookie)
 - A sidebar shell — **Home** (net balance summary + recent groups), **Groups**, **Expenses** (personal insights across every group), **Settings**
 - Create a group by typing names — people don't need an account to be tracked.
@@ -21,6 +22,7 @@ A simplified Splitwise clone: Next.js (App Router, API routes) + Prisma + Postgr
 - Light/dark theme toggle (Graphite & Indigo design tokens, Tailwind-driven)
 
 ## Not yet built (natural next steps)
+
 - Linking a guest `GroupMember`/`Contact` to a real `User` (e.g. by email invite) once they sign up
 - Recording settlements ("mark as paid") — the `Settlement` model already exists in the schema, just needs an API route + UI
 - Editing/deleting expenses, and a contacts management page (rename/merge/delete)
@@ -31,11 +33,13 @@ A simplified Splitwise clone: Next.js (App Router, API routes) + Prisma + Postgr
 ## Local setup
 
 1. **Install PostgreSQL locally** (or run it in Docker) and create a database:
+
    ```bash
    createdb splitwise
    ```
 
 2. **Copy the env file and fill it in:**
+
    ```bash
    cp .env.example .env
    # edit DATABASE_URL if your local Postgres user/password/port differ
@@ -43,11 +47,13 @@ A simplified Splitwise clone: Next.js (App Router, API routes) + Prisma + Postgr
    ```
 
 3. **Install dependencies:**
+
    ```bash
    npm install
    ```
 
 4. **Run the first migration** (creates all tables from `prisma/schema.prisma`):
+
    ```bash
    npm run db:migrate
    ```
@@ -59,17 +65,19 @@ A simplified Splitwise clone: Next.js (App Router, API routes) + Prisma + Postgr
    Visit http://localhost:3000 — it'll redirect you to `/register`, then `/home`.
 
 Useful extras:
+
 - `npm run db:studio` — a GUI to browse/edit your local database
 - After changing `prisma/schema.prisma`, run `npm run db:migrate` again to create a new migration
 
 ## How the "no account required, but reusable" model works
 
 Money never points directly at a `User`. It points at `GroupMember`, which is "a person in this group" and
-*optionally* has a `userId` (real account) or a `contactId` (a reusable guest identity you own):
+_optionally_ has a `userId` (real account) or a `contactId` (a reusable guest identity you own):
+
 - The group creator's `GroupMember` row is linked to their `User` automatically.
 - Everyone else you add is a guest. Typing a brand-new name creates a `Contact` you own, plus a `GroupMember`
   in that group pointing at it.
-- Adding a person to *another* group shows your existing `Contact`s as autocomplete suggestions (see
+- Adding a person to _another_ group shows your existing `Contact`s as autocomplete suggestions (see
   `/api/contacts` and `PersonPicker.tsx`). Picking one reuses the same `contactId` — a new `GroupMember` row is
   still created (per group), but since it's the same `Contact`, their balances and spending combine correctly
   wherever you aggregate across groups (Home, Expenses).
@@ -79,6 +87,7 @@ Money never points directly at a `User`. It points at `GroupMember`, which is "a
   history stays intact since it was always attached to the `GroupMember`/`Contact`, not directly to a `User`.
 
 ## Project structure
+
 ```
 prisma/schema.prisma          - data model (User, Contact, Group, GroupMember, Expense, ExpenseSplit, Settlement)
 src/lib/db.ts                 - Prisma client singleton
@@ -93,4 +102,3 @@ src/app/(app)/                - the authenticated shell: home, groups, groups/[i
 src/app/login, src/app/register - unauthenticated pages
 src/components/                - Sidebar, ThemeToggle, PersonPicker, forms, charts, balances panel
 ```
-

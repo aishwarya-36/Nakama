@@ -18,14 +18,15 @@ export default function Sidebar({ userName }: { userName: string }) {
     <aside className="flex h-screen w-56 flex-shrink-0 flex-col border-r border-border bg-surface sticky top-0">
       <div className="flex items-center gap-2 border-b border-border px-4 py-4">
         <div className="flex h-8 w-8 items-center justify-center rounded-md bg-primary text-sm font-bold text-primary-contrast">
-          S
+          {userName.charAt(0).toUpperCase()}
         </div>
-        <span className="text-sm font-semibold text-text">Splitcheck</span>
+        <span className="text-sm font-semibold text-text">Nakama</span>
       </div>
 
       <nav className="flex-1 space-y-1 p-3">
         {NAV_ITEMS.map((item) => {
-          const active = pathname === item.href || pathname.startsWith(item.href + "/");
+          const active =
+            pathname === item.href || pathname.startsWith(item.href + "/");
           const Icon = item.icon;
           return (
             <Link
@@ -56,7 +57,14 @@ export default function Sidebar({ userName }: { userName: string }) {
 }
 
 function iconProps() {
-  return { width: 18, height: 18, viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: 2 } as const;
+  return {
+    width: 18,
+    height: 18,
+    viewBox: "0 0 24 24",
+    fill: "none",
+    stroke: "currentColor",
+    strokeWidth: 2,
+  } as const;
 }
 
 function HomeIcon() {
