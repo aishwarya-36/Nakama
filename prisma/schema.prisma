@@ -1,0 +1,115 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// A real, login-capable account.
+model User {
+  id           String        @id @default(uuid())
+  email        String        @unique
+  passwordHash String
+  name         String
+  baseCurrency String        @default("USD") // used as the default "show in" currency everywhere
+  createdAt    DateTime      @default(now())
+  groupMembers GroupMember[] // every group this account is linked to, via a GroupMember row
+  contacts     Contact[]     // guest identities this user has created (their private "address book")
+}
+
+// A guest identity owned by a User — lets the same "person" (e.g. a friend without
+// an account) be reused across multiple groups so their history combines on the
+// owner's personal dashboard, instead of becoming a fresh disconnected person each time.
+// Two different people can share the same name; they're only the same Contact if the
+// owner explicitly picked the existing suggestion when adding them to a group.
+model Contact {
+  id           String        @id @default(uuid())
+  ownerId      String
+  owner        User          @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  name         String
+  baseCurrency String        @default("USD")
+  createdAt    DateTime      @default(now())
+  groupMembers GroupMember[]
+}
+
+model Group {
+  id          String        @id @default(uuid())
+  name        String
+  createdAt   DateTime      @default(now())
+  members     GroupMember[]
+  expenses    Expense[]
+  settlements Settlement[]
+}
+
+// The core trick: this represents a PERSON in a group, not necessarily a User.
+// It may or may not be linked to a real account (userId nullable).
+// All money (who paid, who owes) points at GroupMember, never directly at User,
+// so a guest can be "claimed" by a real account later without touching history.
+model GroupMember {
+  id          String   @id @default(uuid())
+  groupId     String
+  group       Group    @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  userId      String?  // null = guest, not linked to any account
+  user        User?    @relation(fields: [userId], references: [id])
+  contactId   String?  // null = real user (or a one-off guest, pre-migration). Links guests to a reusable identity.
+  contact     Contact? @relation(fields: [contactId], references: [id])
+  displayName String   // snapshot of the name shown, kept in sync with user/contact name
+  createdAt   DateTime @default(now())
+
+  paidExpenses     Expense[]      @relation("PaidBy")
+  splits           ExpenseSplit[]
+  settlementsFrom  Settlement[]   @relation("SettlementFrom")
+  settlementsTo    Settlement[]   @relation("SettlementTo")
+
+  @@unique([groupId, userId]) // a real account can only appear once per group
+}
+
+enum SplitType {
+  EQUAL
+  EXACT
+  PERCENTAGE
+}
+
+model Expense {
+  id          String         @id @default(uuid())
+  groupId     String
+  group       Group          @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  description String
+  amount      Decimal        @db.Decimal(12, 2) // total amount, in `currency`
+  currency    String         // ISO 4217 code, e.g. "USD"
+  paidById    String
+  paidBy      GroupMember    @relation("PaidBy", fields: [paidById], references: [id])
+  splitType   SplitType      @default(EQUAL)
+  date        DateTime       @default(now())
+  createdAt   DateTime       @default(now())
+  splits      ExpenseSplit[]
+}
+
+// One row per group member per expense: how much of that expense they owe.
+model ExpenseSplit {
+  id            String      @id @default(uuid())
+  expenseId     String
+  expense       Expense     @relation(fields: [expenseId], references: [id], onDelete: Cascade)
+  groupMemberId String
+  groupMember   GroupMember @relation(fields: [groupMemberId], references: [id])
+  amount        Decimal     @db.Decimal(12, 2) // this member's owed share, in the expense's currency
+
+  @@unique([expenseId, groupMemberId])
+}
+
+// A direct payment recorded to settle up between two members (not tied to a specific expense).
+model Settlement {
+  id           String      @id @default(uuid())
+  groupId      String
+  group        Group       @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  fromMemberId String
+  fromMember   GroupMember @relation("SettlementFrom", fields: [fromMemberId], references: [id])
+  toMemberId   String
+  toMember     GroupMember @relation("SettlementTo", fields: [toMemberId], references: [id])
+  amount       Decimal     @db.Decimal(12, 2)
+  currency     String
+  date         DateTime    @default(now())
+  note         String?
+}
