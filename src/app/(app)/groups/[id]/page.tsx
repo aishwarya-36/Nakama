@@ -15,7 +15,7 @@ export default async function GroupPage({ params }: { params: { id: string } }) 
     include: {
       members: true,
       expenses: {
-        include: { splits: true, paidBy: true },
+        include: { splits: true, payments: { include: { groupMember: true } } },
         orderBy: { date: "desc" },
       },
     },
@@ -67,8 +67,12 @@ export default async function GroupPage({ params }: { params: { id: string } }) 
               <div>
                 <div className="font-medium text-text">{exp.description}</div>
                 <div className="text-sm text-text-muted">
-                  Paid by {exp.paidBy.displayName} ·{" "}
-                  {new Date(exp.date).toLocaleDateString()}
+                  Paid by{" "}
+                  {exp.payments.length === 1
+                    ? exp.payments[0].groupMember.displayName
+                    : exp.payments.map((p) => p.groupMember.displayName).join(", ")}{" "}
+                  · {new Date(exp.date).toLocaleDateString()}
+                  {exp.category && ` · ${exp.category}`}
                 </div>
               </div>
               <div className="font-medium text-text">

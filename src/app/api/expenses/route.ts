@@ -4,7 +4,7 @@ import { prisma } from "@/lib/db";
 import { getSessionFromCookies } from "@/lib/auth";
 import { resolveContact } from "@/lib/contacts";
 import { findOrCreatePersonalGroup } from "@/lib/personalGroups";
-import { computeSplitRows } from "@/lib/splits";
+import { computeSplitRows, validatePayers } from "@/lib/splits";
 
 const personSchema = z.object({
   name: z.string().min(1),
@@ -19,10 +19,12 @@ const schema = z.object({
   description: z.string().min(1),
   amount: z.number().positive(),
   currency: z.string().length(3),
+  category: z.string().optional(),
+  notes: z.string().optional(),
   date: z.string().datetime().optional(),
-  splitType: z.enum(["EQUAL", "EXACT", "PERCENTAGE"]).default("EQUAL"),
+  splitType: z.enum(["EQUAL", "EXACT", "PERCENTAGE", "SHARES"]).default("EQUAL"),
   people: z.array(personSchema).min(1),
-  paidBy: refSchema,
+  payers: z.array(z.object({ ref: refSchema, value: z.number() })).min(1),
   memberIds: z.array(refSchema).optional(),
   splits: z.array(z.object({ ref: refSchema, value: z.number() })).optional(),
 });
@@ -41,7 +43,8 @@ export async function POST(req: NextRequest) {
   if (!parsed.success) {
     return NextResponse.json({ error: parsed.error.issues[0].message }, { status: 400 });
   }
-  const { description, amount, currency, date, splitType, people, paidBy, memberIds, splits } = parsed.data;
+  const { description, amount, currency, category, notes, date, splitType, people, payers, memberIds, splits } =
+    parsed.data;
 
   const contactIds: string[] = [];
   for (const person of people) {
@@ -73,11 +76,20 @@ export async function POST(req: NextRequest) {
     return refToMemberId.get(ref) || null;
   }
 
-  const paidById = resolveRef(paidBy);
-  if (!paidById) return NextResponse.json({ error: "Invalid payer" }, { status: 400 });
-
   const validIds = new Set(group.members.map((m) => m.id));
   const allIds = group.members.map((m) => m.id);
+
+  const resolvedPayers: { id: string; value: number }[] = [];
+  for (const p of payers) {
+    const id = resolveRef(p.ref);
+    if (!id) return NextResponse.json({ error: "Invalid payer" }, { status: 400 });
+    resolvedPayers.push({ id, value: p.value });
+  }
+  const payerResult = validatePayers(resolvedPayers, amount, validIds);
+  if ("error" in payerResult) {
+    return NextResponse.json({ error: payerResult.error }, { status: 400 });
+  }
+  const paymentRows = payerResult.map((r) => ({ groupMemberId: r.id, amount: r.amount }));
 
   const resolvedMemberIds: string[] = [];
   for (const ref of memberIds || []) {
@@ -111,12 +123,14 @@ export async function POST(req: NextRequest) {
       description,
       amount,
       currency,
-      paidById,
+      category: category || null,
+      notes: notes || null,
       splitType,
       date: date ? new Date(date) : undefined,
+      payments: { create: paymentRows },
       splits: { create: splitRows },
     },
-    include: { splits: true, paidBy: true },
+    include: { splits: true, payments: { include: { groupMember: true } } },
   });
 
   return NextResponse.json({ expense, groupId: group.id }, { status: 201 });

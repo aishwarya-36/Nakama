@@ -39,13 +39,14 @@ export async function computeGroupBalances(
 
   const expenses = await prisma.expense.findMany({
     where: { groupId },
-    include: { splits: true },
+    include: { splits: true, payments: true },
   });
   for (const exp of expenses) {
-    const amount = Number(exp.amount);
-    bump(exp.paidById, exp.currency, amount); // payer is owed the full amount...
+    for (const payment of exp.payments) {
+      bump(payment.groupMemberId, exp.currency, Number(payment.amount)); // each payer is owed what they put in...
+    }
     for (const split of exp.splits) {
-      bump(split.groupMemberId, exp.currency, -Number(split.amount)); // ...minus what everyone (incl. payer) owes
+      bump(split.groupMemberId, exp.currency, -Number(split.amount)); // ...minus what everyone (incl. payers) owes
     }
   }
 
@@ -126,11 +127,14 @@ export async function computeUserOverview(userId: string, baseCurrency: string) 
 
     const expenses = await prisma.expense.findMany({
       where: { groupId: m.groupId },
-      include: { splits: { where: { groupMemberId: m.id } } },
+      include: {
+        splits: { where: { groupMemberId: m.id } },
+        payments: { where: { groupMemberId: m.id } },
+      },
     });
     for (const exp of expenses) {
-      if (exp.paidById === m.id) {
-        const converted = await convert(Number(exp.amount), exp.currency, baseCurrency);
+      for (const payment of exp.payments) {
+        const converted = await convert(Number(payment.amount), exp.currency, baseCurrency);
         if (converted !== null) totalPaidByYou += converted;
       }
       for (const split of exp.splits) {

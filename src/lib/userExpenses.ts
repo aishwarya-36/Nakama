@@ -33,11 +33,19 @@ export interface UserExpenseRow {
   date: Date;
   amount: number;
   currency: string;
+  category: string | null;
+  notes: string | null;
   groupId: string;
   groupName: string;
   isPersonal: boolean;
   paidByName: string;
   yourShare: number;
+}
+
+function paidByLabel(payments: { groupMember: { displayName: string } }[]): string {
+  if (payments.length === 0) return "—";
+  if (payments.length === 1) return payments[0].groupMember.displayName;
+  return `${payments[0].groupMember.displayName} +${payments.length - 1}`;
 }
 
 async function buildWhere(userId: string, from?: Date, to?: Date): Promise<Prisma.ExpenseWhereInput> {
@@ -57,10 +65,12 @@ function toRow(e: any): UserExpenseRow {
     date: e.date,
     amount: Number(e.amount),
     currency: e.currency,
+    category: e.category,
+    notes: e.notes,
     groupId: e.groupId,
     groupName: e.group.isPersonal ? "Direct" : e.group.name,
     isPersonal: e.group.isPersonal,
-    paidByName: e.paidBy.displayName,
+    paidByName: paidByLabel(e.payments),
     yourShare: e.splits.reduce((sum: number, s: any) => sum + Number(s.amount), 0),
   };
 }
@@ -83,7 +93,7 @@ export async function getUserExpensesPage(
     prisma.expense.findMany({
       where,
       include: {
-        paidBy: true,
+        payments: { include: { groupMember: { select: { displayName: true } } } },
         group: { select: { name: true, isPersonal: true } },
         splits: { where: { groupMemberId: { in: memberIds } } },
       },
@@ -105,7 +115,7 @@ export async function getAllUserExpenses(userId: string, from?: Date, to?: Date)
   const expenses = await prisma.expense.findMany({
     where,
     include: {
-      paidBy: true,
+      payments: { include: { groupMember: { select: { displayName: true } } } },
       group: { select: { name: true, isPersonal: true } },
       splits: { where: { groupMemberId: { in: memberIds } } },
     },

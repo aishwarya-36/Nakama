@@ -19,7 +19,7 @@ export async function GET(_req: Request, { params }: { params: { id: string } })
     include: {
       members: true,
       expenses: {
-        include: { splits: true, paidBy: true },
+        include: { splits: true, payments: { include: { groupMember: true } } },
         orderBy: { date: "desc" },
       },
     },

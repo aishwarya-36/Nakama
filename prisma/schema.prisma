@@ -60,7 +60,7 @@ model GroupMember {
   displayName String   // snapshot of the name shown, kept in sync with user/contact name
   createdAt   DateTime @default(now())
 
-  paidExpenses     Expense[]      @relation("PaidBy")
+  payments         ExpensePayment[]
   splits           ExpenseSplit[]
   settlementsFrom  Settlement[]   @relation("SettlementFrom")
   settlementsTo    Settlement[]   @relation("SettlementTo")
@@ -72,21 +72,34 @@ enum SplitType {
   EQUAL
   EXACT
   PERCENTAGE
+  SHARES
 }
 
 model Expense {
-  id          String         @id @default(uuid())
+  id          String           @id @default(uuid())
   groupId     String
-  group       Group          @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  group       Group            @relation(fields: [groupId], references: [id], onDelete: Cascade)
   description String
-  amount      Decimal        @db.Decimal(12, 2) // total amount, in `currency`
-  currency    String         // ISO 4217 code, e.g. "USD"
-  paidById    String
-  paidBy      GroupMember    @relation("PaidBy", fields: [paidById], references: [id])
-  splitType   SplitType      @default(EQUAL)
-  date        DateTime       @default(now())
-  createdAt   DateTime       @default(now())
+  amount      Decimal          @db.Decimal(12, 2) // total amount, in `currency`
+  currency    String           // ISO 4217 code, e.g. "USD"
+  category    String?          // a known key ("food", "movie", ...) or free text typed under "Other"
+  notes       String?
+  splitType   SplitType        @default(EQUAL)
+  date        DateTime         @default(now()) // the invoice date — when the expense happened, not when it was entered
+  createdAt   DateTime         @default(now())
+  payments    ExpensePayment[] // who actually paid, and how much each — replaces paidById once the backfill lands
   splits      ExpenseSplit[]
+}
+
+// One row per person who contributed money toward an expense — supports splitting
+// the bill three ways for who *paid*, not just who owes.
+model ExpensePayment {
+  id            String      @id @default(uuid())
+  expenseId     String
+  expense       Expense     @relation(fields: [expenseId], references: [id], onDelete: Cascade)
+  groupMemberId String
+  groupMember   GroupMember @relation(fields: [groupMemberId], references: [id])
+  amount        Decimal     @db.Decimal(12, 2)
 }
 
 // One row per group member per expense: how much of that expense they owe.

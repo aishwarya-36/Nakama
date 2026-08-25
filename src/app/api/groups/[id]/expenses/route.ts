@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/db";
 import { getSessionFromCookies } from "@/lib/auth";
-import { computeSplitRows } from "@/lib/splits";
+import { computeSplitRows, validatePayers } from "@/lib/splits";
 
 async function assertMember(groupId: string, userId: string) {
   return !!(await prisma.groupMember.findFirst({ where: { groupId, userId } }));
@@ -16,7 +16,7 @@ export async function GET(_req: Request, { params }: { params: { id: string } })
   }
   const expenses = await prisma.expense.findMany({
     where: { groupId: params.id },
-    include: { splits: true, paidBy: true },
+    include: { splits: true, payments: { include: { groupMember: true } } },
     orderBy: { date: "desc" },
   });
   return NextResponse.json({ expenses });
@@ -26,10 +26,12 @@ const baseSchema = z.object({
   description: z.string().min(1),
   amount: z.number().positive(),
   currency: z.string().length(3),
-  paidById: z.string().uuid(),
+  category: z.string().optional(),
+  notes: z.string().optional(),
   date: z.string().datetime().optional(),
-  splitType: z.enum(["EQUAL", "EXACT", "PERCENTAGE"]).default("EQUAL"),
-  // EQUAL: which members share it. EXACT: [{groupMemberId, amount}]. PERCENTAGE: [{groupMemberId, percentage}]
+  payers: z.array(z.object({ groupMemberId: z.string().uuid(), value: z.number() })).min(1),
+  splitType: z.enum(["EQUAL", "EXACT", "PERCENTAGE", "SHARES"]).default("EQUAL"),
+  // EQUAL: which members share it. EXACT: [{groupMemberId, amount}]. PERCENTAGE/SHARES: [{groupMemberId, value}]
   memberIds: z.array(z.string().uuid()).optional(),
   splits: z.array(z.object({ groupMemberId: z.string().uuid(), value: z.number() })).optional(),
 });
@@ -46,14 +48,20 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   if (!parsed.success) {
     return NextResponse.json({ error: parsed.error.issues[0].message }, { status: 400 });
   }
-  const { description, amount, currency, paidById, splitType, date } = parsed.data;
+  const { description, amount, currency, category, notes, splitType, date, payers } = parsed.data;
 
-  // Make sure paidById and any referenced members actually belong to this group.
   const groupMembers = await prisma.groupMember.findMany({ where: { groupId: params.id } });
   const validIds = new Set(groupMembers.map((m) => m.id));
-  if (!validIds.has(paidById)) {
-    return NextResponse.json({ error: "paidById is not a member of this group" }, { status: 400 });
+
+  const payerResult = validatePayers(
+    payers.map((p) => ({ id: p.groupMemberId, value: p.value })),
+    amount,
+    validIds
+  );
+  if ("error" in payerResult) {
+    return NextResponse.json({ error: payerResult.error }, { status: 400 });
   }
+  const paymentRows = payerResult.map((r) => ({ groupMemberId: r.id, amount: r.amount }));
 
   const result = computeSplitRows(
     splitType,
@@ -74,12 +82,14 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
       description,
       amount,
       currency,
-      paidById,
+      category: category || null,
+      notes: notes || null,
       splitType,
       date: date ? new Date(date) : undefined,
+      payments: { create: paymentRows },
       splits: { create: splitRows },
     },
-    include: { splits: true, paidBy: true },
+    include: { splits: true, payments: { include: { groupMember: true } } },
   });
 
   return NextResponse.json({ expense }, { status: 201 });
