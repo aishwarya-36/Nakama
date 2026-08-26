@@ -2,6 +2,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import AuthBackground from "@/components/AuthBackground";
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -31,8 +32,9 @@ export default function RegisterPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center px-4">
-      <div className="w-full max-w-sm">
+    <div className="relative flex min-h-screen items-center justify-center overflow-hidden px-4">
+      <AuthBackground />
+      <div className="relative z-10 w-full max-w-sm rounded-xl border border-border bg-surface/90 p-6 shadow-lg backdrop-blur-sm">
         <h1 className="mb-1 text-2xl font-semibold text-text">Create your account</h1>
         <p className="mb-6 text-sm text-text-muted">
           Only people who want to log in and track their own groups need one.

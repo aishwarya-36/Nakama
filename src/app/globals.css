@@ -28,6 +28,9 @@
   --color-border-strong: 212 212 216; /* #D4D4D8 */
   --color-border-faint: 244 244 245; /* #F4F4F5 */
 
+  --color-satin-1: 218 218 223; /* zinc-200ish — login background wave */
+  --color-satin-2: 196 196 203; /* zinc-300ish */
+
   --color-text: 24 24 27; /* #18181B */
   --color-text-muted: 113 113 122; /* #71717A */
   --color-text-faint: 161 161 170; /* #A1A1AA */
@@ -84,6 +87,9 @@
   --color-border-strong: 63 63 70; /* zinc-700 */
   --color-border-faint: 39 39 42;
 
+  --color-satin-1: 32 32 35; /* zinc-800/900ish — login background wave */
+  --color-satin-2: 20 20 23; /* near-black */
+
   --color-text: 250 250 250; /* zinc-50 */
   --color-text-muted: 161 161 170; /* zinc-400 */
   --color-text-faint: 113 113 122; /* zinc-500 */
@@ -126,4 +132,98 @@ body {
 :focus-visible {
   outline: 2px solid rgb(var(--color-primary));
   outline-offset: 2px;
+}
+
+/* ============================================================================
+   Auth page background — satin gray wave with floating currency symbols
+   ========================================================================== */
+.auth-shine {
+  background-size: 260% 260%;
+  mix-blend-mode: overlay;
+}
+.dark .auth-shine {
+  mix-blend-mode: soft-light;
+}
+
+/* Two sheen bands crossing at different angles/speeds — real satin catches
+   light from more than one fold direction, so a single band reads flat. */
+.auth-shine-1 {
+  background-image: linear-gradient(
+    115deg,
+    transparent 15%,
+    rgba(255, 255, 255, 0.22) 44%,
+    rgba(255, 255, 255, 0.5) 50%,
+    rgba(255, 255, 255, 0.22) 56%,
+    transparent 85%
+  );
+  animation: auth-shine-move-1 46s ease-in-out infinite;
+}
+.auth-shine-2 {
+  background-image: linear-gradient(
+    250deg,
+    transparent 25%,
+    rgba(255, 255, 255, 0.12) 46%,
+    rgba(255, 255, 255, 0.26) 50%,
+    rgba(255, 255, 255, 0.12) 54%,
+    transparent 75%
+  );
+  animation: auth-shine-move-2 63s ease-in-out infinite;
+}
+
+@keyframes auth-shine-move-1 {
+  0% {
+    background-position: 0% 0%;
+  }
+  50% {
+    background-position: 100% 100%;
+  }
+  100% {
+    background-position: 0% 0%;
+  }
+}
+@keyframes auth-shine-move-2 {
+  0% {
+    background-position: 100% 0%;
+  }
+  50% {
+    background-position: 0% 100%;
+  }
+  100% {
+    background-position: 100% 0%;
+  }
+}
+
+.auth-symbol {
+  opacity: 0.22;
+  transform: rotate(var(--rot, 0deg));
+  animation-name: auth-symbol-float;
+  animation-timing-function: ease-in-out;
+  animation-iteration-count: infinite;
+  will-change: transform, opacity;
+}
+.dark .auth-symbol {
+  opacity: 0.14;
+}
+
+@keyframes auth-symbol-float {
+  0% {
+    transform: translate(0, 0) rotate(var(--rot, 0deg));
+    opacity: 0.14;
+  }
+  50% {
+    transform: translate(14px, -26px) rotate(calc(var(--rot, 0deg) + 6deg));
+    opacity: 0.3;
+  }
+  100% {
+    transform: translate(0, 0) rotate(var(--rot, 0deg));
+    opacity: 0.14;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .auth-shine-1,
+  .auth-shine-2,
+  .auth-symbol {
+    animation: none;
+  }
 }
