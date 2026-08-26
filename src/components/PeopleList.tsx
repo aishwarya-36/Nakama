@@ -4,14 +4,18 @@ import { useRouter } from "next/navigation";
 import { useToast } from "./ToastProvider";
 import SearchToggle from "./SearchToggle";
 import AddPersonButton from "./AddPersonButton";
+import EditPersonButton from "./EditPersonButton";
 import { useInfiniteScrollSentinel } from "@/lib/useInfiniteScrollSentinel";
 
 interface Person {
   id: string;
   name: string;
   baseCurrency: string;
+  email: string | null;
+  upiId: string | null;
   groupNames: string[];
   total: number;
+  byCurrency: Record<string, number>;
   skippedCurrencies: string[];
 }
 
@@ -91,14 +95,13 @@ export default function PeopleList({
         Everyone you've added, across every group and direct expense — balances shown in {baseCurrency}.
       </p>
 
-      <div className="rounded-lg border border-border bg-surface p-5 shadow-sm">
-        {people.length === 0 && !loading && (
-          <p className="text-sm text-text-muted">
-            {q ? `No people match "${q}".` : "No people yet — add one above."}
-          </p>
-        )}
+      {people.length === 0 && !loading && (
+        <p className="text-sm text-text-muted">
+          {q ? `No people match "${q}".` : "No people yet — add one above."}
+        </p>
+      )}
 
-        <div className="divide-y divide-border">
+      <div className="divide-y divide-border">
         {people.map((p) => {
           const rounded = Math.round(p.total * 100) / 100;
           const tone = rounded > 0.004 ? "text-success-text" : rounded < -0.004 ? "text-error" : "text-text-faint";
@@ -107,16 +110,37 @@ export default function PeopleList({
             <div key={p.id} className="py-3">
               <div className="flex items-center justify-between gap-3">
                 <div>
-                  <div className="font-medium text-text">{p.name}</div>
+                  <span className="inline-flex items-center gap-1.5">
+                    <span className="font-medium text-text">{p.name}</span>
+                    <EditPersonButton
+                      person={{ id: p.id, name: p.name, baseCurrency: p.baseCurrency, email: p.email, upiId: p.upiId }}
+                      onSaved={(updated) =>
+                        setPeople((prev) => prev.map((x) => (x.id === p.id ? { ...x, ...updated } : x)))
+                      }
+                    />
+                  </span>
                   <div className="text-xs text-text-faint">
                     {p.groupNames.length > 0 ? `In: ${p.groupNames.join(", ")}` : "Not in any group yet"}
                   </div>
                 </div>
-                <div className="flex items-center gap-3">
-                  <span className={`text-sm ${tone}`}>
-                    {label}
-                    {rounded !== 0 && ` ${Math.abs(rounded).toFixed(2)} ${baseCurrency}`}
-                  </span>
+                <div className="flex items-start gap-3">
+                  <div className="text-right">
+                    <span className={`text-sm ${tone}`}>
+                      {label}
+                      {rounded !== 0 && ` ${Math.abs(rounded).toFixed(2)} ${baseCurrency}`}
+                    </span>
+                    {Object.entries(p.byCurrency).filter(([, amt]) => Math.abs(amt) > 0.005).length > 0 && (
+                      <ul className="mt-0.5 space-y-0.5 text-xs text-text-faint">
+                        {Object.entries(p.byCurrency)
+                          .filter(([, amt]) => Math.abs(amt) > 0.005)
+                          .map(([currency, amt]) => (
+                            <li key={currency}>
+                              {amt > 0 ? "owed" : "owes"} {Math.abs(amt).toFixed(2)} {currency}
+                            </li>
+                          ))}
+                      </ul>
+                    )}
+                  </div>
                   <button
                     type="button"
                     onClick={() => remove(p.id, p.name)}
@@ -142,11 +166,10 @@ export default function PeopleList({
             </div>
           );
         })}
-        </div>
-
-        {loading && <p className="py-3 text-center text-sm text-text-faint">Loading…</p>}
-        {people.length < total && <div ref={sentinelRef} className="h-1" />}
       </div>
+
+      {loading && <p className="py-3 text-center text-sm text-text-faint">Loading…</p>}
+      {people.length < total && <div ref={sentinelRef} className="h-1" />}
     </div>
   );
 }

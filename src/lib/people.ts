@@ -23,8 +23,11 @@ export interface PersonSummary {
   id: string;
   name: string;
   baseCurrency: string;
+  email: string | null;
+  upiId: string | null;
   groupNames: string[];
   total: number;
+  byCurrency: Record<string, number>;
   skippedCurrencies: string[];
 }
 
@@ -64,8 +67,11 @@ export async function getPeopleWithBalances(
       id: c.id,
       name: c.name,
       baseCurrency: c.baseCurrency,
+      email: c.email,
+      upiId: c.upiId,
       groupNames: c.groupMembers.filter((gm) => !gm.group.isPersonal).map((gm) => gm.group.name),
       total,
+      byCurrency,
       skippedCurrencies: skipped,
     });
   }

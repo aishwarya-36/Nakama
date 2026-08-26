@@ -28,6 +28,8 @@ export async function GET(req: NextRequest) {
 const schema = z.object({
   name: z.string().min(1),
   baseCurrency: z.string().length(3).optional(),
+  email: z.string().email().optional().or(z.literal("")),
+  upiId: z.string().optional(),
 });
 
 // Adds a person directly, with no group attached yet — they only end up in a
@@ -41,11 +43,24 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: parsed.error.issues[0].message }, { status: 400 });
   }
 
+  const name = parsed.data.name.trim();
+  const dupe = await prisma.contact.findFirst({
+    where: { ownerId: session.userId, name: { equals: name, mode: "insensitive" } },
+  });
+  if (dupe) {
+    return NextResponse.json(
+      { error: `You already have a person named "${dupe.name}" — use a different name, e.g. "${dupe.name} 2".` },
+      { status: 409 }
+    );
+  }
+
   const contact = await prisma.contact.create({
     data: {
       ownerId: session.userId,
-      name: parsed.data.name,
+      name,
       baseCurrency: parsed.data.baseCurrency || "USD",
+      email: parsed.data.email || null,
+      upiId: parsed.data.upiId?.trim() || null,
     },
   });
   return NextResponse.json({ contact }, { status: 201 });

@@ -1,24 +1,36 @@
 "use client";
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import { ALL_CURRENCIES } from "@/lib/currencies";
 import { useToast } from "./ToastProvider";
 
-export default function AddPersonForm({ onSuccess }: { onSuccess?: () => void } = {}) {
-  const router = useRouter();
+export interface EditablePerson {
+  id: string;
+  name: string;
+  baseCurrency: string;
+  email: string | null;
+  upiId: string | null;
+}
+
+export default function EditPersonForm({
+  person,
+  onSaved,
+}: {
+  person: EditablePerson;
+  onSaved: (updated: EditablePerson) => void;
+}) {
   const toast = useToast();
-  const [name, setName] = useState("");
-  const [baseCurrency, setBaseCurrency] = useState("USD");
-  const [email, setEmail] = useState("");
-  const [upiId, setUpiId] = useState("");
+  const [name, setName] = useState(person.name);
+  const [baseCurrency, setBaseCurrency] = useState(person.baseCurrency);
+  const [email, setEmail] = useState(person.email || "");
+  const [upiId, setUpiId] = useState(person.upiId || "");
   const [loading, setLoading] = useState(false);
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!name.trim()) return;
     setLoading(true);
-    const res = await fetch("/api/people", {
-      method: "POST",
+    const res = await fetch(`/api/people/${person.id}`, {
+      method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         name: name.trim(),
@@ -30,15 +42,11 @@ export default function AddPersonForm({ onSuccess }: { onSuccess?: () => void } 
     setLoading(false);
     if (!res.ok) {
       const data = await res.json().catch(() => ({}));
-      toast.error(data.error || "Couldn't add person");
+      toast.error(data.error || "Couldn't save changes");
       return;
     }
-    toast.success(`${name.trim()} added`);
-    setName("");
-    setEmail("");
-    setUpiId("");
-    onSuccess?.();
-    router.refresh();
+    toast.success("Person updated");
+    onSaved({ id: person.id, name: name.trim(), baseCurrency, email: email.trim() || null, upiId: upiId.trim() || null });
   }
 
   return (
@@ -49,7 +57,6 @@ export default function AddPersonForm({ onSuccess }: { onSuccess?: () => void } 
           <input
             value={name}
             onChange={(e) => setName(e.target.value)}
-            placeholder="Name"
             className="mt-1 w-full rounded-md border border-border bg-surface px-3 py-2 text-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary/40"
           />
         </div>
@@ -96,7 +103,7 @@ export default function AddPersonForm({ onSuccess }: { onSuccess?: () => void } 
         disabled={loading}
         className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-contrast hover:bg-primary-hover disabled:opacity-60"
       >
-        {loading ? "Adding…" : "Add person"}
+        {loading ? "Saving…" : "Save changes"}
       </button>
     </form>
   );

@@ -1,7 +1,59 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
+import { z } from "zod";
 import { prisma } from "@/lib/db";
 import { getSessionFromCookies } from "@/lib/auth";
 import { getContactBalanceByCurrency } from "@/lib/people";
+
+const patchSchema = z.object({
+  name: z.string().min(1),
+  baseCurrency: z.string().length(3).optional(),
+  email: z.string().email().optional().or(z.literal("")),
+  upiId: z.string().optional(),
+});
+
+// Edits a person's name, base currency, email, and UPI ID. Rejects a
+// case-insensitive duplicate of another contact's name (same rule as
+// creating one), and keeps every GroupMember.displayName snapshot for this
+// contact in sync, per the schema's documented invariant.
+export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
+  const session = getSessionFromCookies();
+  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  const contact = await prisma.contact.findFirst({
+    where: { id: params.id, ownerId: session.userId },
+  });
+  if (!contact) return NextResponse.json({ error: "Person not found" }, { status: 404 });
+
+  const parsed = patchSchema.safeParse(await req.json());
+  if (!parsed.success) {
+    return NextResponse.json({ error: parsed.error.issues[0].message }, { status: 400 });
+  }
+
+  const name = parsed.data.name.trim();
+  const dupe = await prisma.contact.findFirst({
+    where: { ownerId: session.userId, id: { not: contact.id }, name: { equals: name, mode: "insensitive" } },
+  });
+  if (dupe) {
+    return NextResponse.json(
+      { error: `You already have a person named "${dupe.name}" — use a different name, e.g. "${dupe.name} 2".` },
+      { status: 409 }
+    );
+  }
+
+  const data = {
+    name,
+    baseCurrency: parsed.data.baseCurrency || contact.baseCurrency,
+    email: parsed.data.email || null,
+    upiId: parsed.data.upiId?.trim() || null,
+  };
+
+  const [updated] = await prisma.$transaction([
+    prisma.contact.update({ where: { id: contact.id }, data }),
+    prisma.groupMember.updateMany({ where: { contactId: contact.id }, data: { displayName: name } }),
+  ]);
+
+  return NextResponse.json({ contact: updated });
+}
 
 // Removes a person from the address book. Only allowed once every currency
 // they're involved in nets to zero across every group they belong to.
