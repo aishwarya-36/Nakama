@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { ALL_CURRENCIES } from "@/lib/currencies";
 import { useToast } from "./ToastProvider";
 
-export default function AddPersonForm() {
+export default function AddPersonForm({ onSuccess }: { onSuccess?: () => void } = {}) {
   const router = useRouter();
   const toast = useToast();
   const [name, setName] = useState("");
@@ -28,6 +28,7 @@ export default function AddPersonForm() {
     }
     toast.success(`${name.trim()} added`);
     setName("");
+    onSuccess?.();
     router.refresh();
   }
 

@@ -10,7 +10,8 @@ export async function GET(req: NextRequest) {
   const rangeParam = params.get("range");
   const range = EXPENSE_RANGES.includes(rangeParam as ExpenseRange) ? (rangeParam as ExpenseRange) : undefined;
   const page = Math.max(1, parseInt(params.get("page") || "1", 10) || 1);
+  const q = params.get("q")?.trim() || "";
 
-  const result = await getUserExpensesPage(session.userId, { from: rangeToFrom(range), page, pageSize: 10 });
+  const result = await getUserExpensesPage(session.userId, { from: rangeToFrom(range), page, pageSize: 10, q });
   return NextResponse.json(result);
 }

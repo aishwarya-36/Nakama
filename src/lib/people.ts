@@ -17,6 +17,8 @@ export async function getContactBalanceByCurrency(contactId: string): Promise<Re
   return totals;
 }
 
+export const PEOPLE_PAGE_SIZE = 15;
+
 export interface PersonSummary {
   id: string;
   name: string;
@@ -26,13 +28,27 @@ export interface PersonSummary {
   skippedCurrencies: string[];
 }
 
-/** Every contact owned by the user, with their balance converted to the user's base currency. */
-export async function getPeopleWithBalances(userId: string, targetCurrency: string): Promise<PersonSummary[]> {
-  const contacts = await prisma.contact.findMany({
-    where: { ownerId: userId },
-    include: { groupMembers: { include: { group: { select: { name: true, isPersonal: true } } } } },
-    orderBy: { name: "asc" },
-  });
+/** A page of the user's contacts (optionally name-filtered), with balances converted to the user's base currency. */
+export async function getPeopleWithBalances(
+  userId: string,
+  targetCurrency: string,
+  opts: { q?: string; skip?: number; take?: number } = {}
+): Promise<{ people: PersonSummary[]; total: number }> {
+  const where = {
+    ownerId: userId,
+    ...(opts.q ? { name: { contains: opts.q, mode: "insensitive" as const } } : {}),
+  };
+
+  const [total, contacts] = await Promise.all([
+    prisma.contact.count({ where }),
+    prisma.contact.findMany({
+      where,
+      include: { groupMembers: { include: { group: { select: { name: true, isPersonal: true } } } } },
+      orderBy: { name: "asc" },
+      skip: opts.skip,
+      take: opts.take,
+    }),
+  ]);
 
   const results: PersonSummary[] = [];
   for (const c of contacts) {
@@ -53,5 +69,5 @@ export async function getPeopleWithBalances(userId: string, targetCurrency: stri
       skippedCurrencies: skipped,
     });
   }
-  return results;
+  return { people: results, total };
 }

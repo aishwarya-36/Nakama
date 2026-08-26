@@ -48,13 +48,14 @@ function paidByLabel(payments: { groupMember: { displayName: string } }[]): stri
   return `${payments[0].groupMember.displayName} +${payments.length - 1}`;
 }
 
-async function buildWhere(userId: string, from?: Date, to?: Date): Promise<Prisma.ExpenseWhereInput> {
+async function buildWhere(userId: string, from?: Date, to?: Date, q?: string): Promise<Prisma.ExpenseWhereInput> {
   const memberIds = (await prisma.groupMember.findMany({ where: { userId }, select: { id: true } })).map(
     (m) => m.id
   );
   return {
     splits: { some: { groupMemberId: { in: memberIds } } },
     ...(from || to ? { date: { ...(from ? { gte: from } : {}), ...(to ? { lte: to } : {}) } } : {}),
+    ...(q ? { description: { contains: q, mode: "insensitive" } } : {}),
   };
 }
 
@@ -78,11 +79,11 @@ function toRow(e: any): UserExpenseRow {
 /** Paginated page of the user's expenses across every group (real + direct), newest first. */
 export async function getUserExpensesPage(
   userId: string,
-  opts: { from?: Date; to?: Date; page?: number; pageSize?: number }
+  opts: { from?: Date; to?: Date; page?: number; pageSize?: number; q?: string }
 ): Promise<{ rows: UserExpenseRow[]; total: number; page: number; pageSize: number }> {
   const page = Math.max(1, opts.page ?? 1);
   const pageSize = opts.pageSize ?? 10;
-  const where = await buildWhere(userId, opts.from, opts.to);
+  const where = await buildWhere(userId, opts.from, opts.to, opts.q);
 
   const memberIds = (await prisma.groupMember.findMany({ where: { userId }, select: { id: true } })).map(
     (m) => m.id

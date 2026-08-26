@@ -3,18 +3,34 @@ import { z } from "zod";
 import { prisma } from "@/lib/db";
 import { getSessionFromCookies } from "@/lib/auth";
 import { resolveContact } from "@/lib/contacts";
+import { GROUPS_PAGE_SIZE } from "@/lib/groups";
 
-// GET: list groups the current user belongs to.
-export async function GET() {
+// GET: list a page of groups the current user belongs to, optionally name-filtered (case-insensitive).
+export async function GET(req: NextRequest) {
   const session = getSessionFromCookies();
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const groups = await prisma.group.findMany({
-    where: { isPersonal: false, members: { some: { userId: session.userId } } },
-    include: { members: true, _count: { select: { expenses: true } } },
-    orderBy: { createdAt: "desc" },
-  });
-  return NextResponse.json({ groups });
+  const params = req.nextUrl.searchParams;
+  const q = params.get("q")?.trim() || "";
+  const page = Math.max(1, parseInt(params.get("page") || "1", 10) || 1);
+
+  const where = {
+    isPersonal: false,
+    members: { some: { userId: session.userId } },
+    ...(q ? { name: { contains: q, mode: "insensitive" as const } } : {}),
+  };
+
+  const [total, groups] = await Promise.all([
+    prisma.group.count({ where }),
+    prisma.group.findMany({
+      where,
+      include: { members: true, _count: { select: { expenses: true } } },
+      orderBy: { createdAt: "desc" },
+      skip: (page - 1) * GROUPS_PAGE_SIZE,
+      take: GROUPS_PAGE_SIZE,
+    }),
+  ]);
+  return NextResponse.json({ groups, total, page, pageSize: GROUPS_PAGE_SIZE });
 }
 
 const personSchema = z.object({

@@ -1,5 +1,7 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import SearchToggle from "./SearchToggle";
+import { useInfiniteScrollSentinel } from "@/lib/useInfiniteScrollSentinel";
 
 interface Row {
   id: string;
@@ -25,50 +27,57 @@ const RANGE_OPTIONS: { value: string; label: string }[] = [
 
 export default function RecentExpensesTable() {
   const [range, setRange] = useState("");
+  const [q, setQ] = useState("");
   const [page, setPage] = useState(1);
   const [rows, setRows] = useState<Row[]>([]);
   const [total, setTotal] = useState(0);
-  const [pageSize, setPageSize] = useState(10);
   const [loading, setLoading] = useState(true);
+
+  const load = useCallback(async (r: string, query: string, targetPage: number, replace: boolean) => {
+    setLoading(true);
+    const qs = new URLSearchParams({
+      page: String(targetPage),
+      ...(r ? { range: r } : {}),
+      ...(query ? { q: query } : {}),
+    });
+    const res = await fetch(`/api/user/expenses?${qs}`);
+    const data = await res.json();
+    setLoading(false);
+    setRows((prev) => (replace ? data.rows || [] : [...prev, ...(data.rows || [])]));
+    setTotal(data.total || 0);
+  }, []);
 
   useEffect(() => {
     setPage(1);
-  }, [range]);
+    load(range, q, 1, true);
+  }, [range, q, load]);
 
-  useEffect(() => {
-    let cancelled = false;
-    setLoading(true);
-    const qs = new URLSearchParams({ page: String(page), ...(range ? { range } : {}) });
-    fetch(`/api/user/expenses?${qs}`)
-      .then((r) => r.json())
-      .then((data) => {
-        if (cancelled) return;
-        setRows(data.rows || []);
-        setTotal(data.total || 0);
-        setPageSize(data.pageSize || 10);
-      })
-      .finally(() => !cancelled && setLoading(false));
-    return () => {
-      cancelled = true;
-    };
-  }, [range, page]);
+  function loadMore() {
+    if (loading || rows.length >= total) return;
+    const nextPage = page + 1;
+    setPage(nextPage);
+    load(range, q, nextPage, false);
+  }
 
-  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+  const sentinelRef = useInfiniteScrollSentinel(loadMore, !loading && rows.length < total);
 
   return (
     <div>
       <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
-        <select
-          value={range}
-          onChange={(e) => setRange(e.target.value)}
-          className="rounded-md border border-border bg-surface px-3 py-1.5 text-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary/40"
-        >
-          {RANGE_OPTIONS.map((o) => (
-            <option key={o.value} value={o.value}>
-              {o.label}
-            </option>
-          ))}
-        </select>
+        <div className="flex items-center gap-2">
+          <select
+            value={range}
+            onChange={(e) => setRange(e.target.value)}
+            className="rounded-md border border-border bg-surface px-3 py-1.5 text-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary/40"
+          >
+            {RANGE_OPTIONS.map((o) => (
+              <option key={o.value} value={o.value}>
+                {o.label}
+              </option>
+            ))}
+          </select>
+          <SearchToggle onSearch={setQ} placeholder="Search expenses…" />
+        </div>
         <a
           href={`/api/user/expenses/export${range ? `?range=${range}` : ""}`}
           className="rounded-md border border-border px-3 py-1.5 text-sm font-medium text-text-muted hover:border-border-strong hover:text-text"
@@ -109,36 +118,19 @@ export default function RecentExpensesTable() {
           </tbody>
         </table>
         {!loading && rows.length === 0 && (
-          <p className="py-6 text-center text-sm text-text-muted">No expenses in this range.</p>
+          <p className="py-6 text-center text-sm text-text-muted">
+            {q ? `No expenses match "${q}".` : "No expenses in this range."}
+          </p>
         )}
         {loading && <p className="py-6 text-center text-sm text-text-faint">Loading…</p>}
       </div>
 
       {total > 0 && (
-        <div className="mt-4 flex items-center justify-between text-sm">
-          <span className="text-text-faint">
-            Page {page} of {totalPages} · {total} {total === 1 ? "expense" : "expenses"}
-          </span>
-          <div className="flex gap-2">
-            <button
-              type="button"
-              onClick={() => setPage((p) => Math.max(1, p - 1))}
-              disabled={page <= 1}
-              className="rounded-md border border-border px-3 py-1 text-text-muted hover:border-border-strong hover:text-text disabled:opacity-40"
-            >
-              Prev
-            </button>
-            <button
-              type="button"
-              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-              disabled={page >= totalPages}
-              className="rounded-md border border-border px-3 py-1 text-text-muted hover:border-border-strong hover:text-text disabled:opacity-40"
-            >
-              Next
-            </button>
-          </div>
+        <div className="mt-3 text-sm text-text-faint">
+          {rows.length} of {total} {total === 1 ? "expense" : "expenses"}
         </div>
       )}
+      {rows.length < total && <div ref={sentinelRef} className="h-1" />}
     </div>
   );
 }

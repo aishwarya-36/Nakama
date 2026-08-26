@@ -3,7 +3,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import PersonPicker, { PersonValue } from "./PersonPicker";
 
-export default function NewGroupForm() {
+export default function NewGroupForm({ onSuccess }: { onSuccess?: () => void } = {}) {
   const router = useRouter();
   const [name, setName] = useState("");
   const [members, setMembers] = useState<PersonValue[]>([{ name: "", baseCurrency: "USD" }]);
@@ -41,6 +41,7 @@ export default function NewGroupForm() {
       return;
     }
     const data = await res.json();
+    onSuccess?.();
     router.push(`/groups/${data.group.id}`);
     router.refresh();
   }
