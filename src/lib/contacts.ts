@@ -8,32 +8,37 @@ export interface PersonInput {
 
 /**
  * Resolves a person entry from the "add people" UI into a Contact id.
- * - If contactId is given, verifies it belongs to this user and reuses it
- *   (this is how the same guest combines across groups — only ever via an
- *   explicit pick, never by matching on name).
- * - Otherwise creates a brand new Contact, even if the name matches an
- *   existing one — two different people are allowed to share a name.
+ * - If contactId is given, verifies it belongs to this user and reuses it.
+ * - Otherwise, looks for an existing contact with the exact same name
+ *   (case-insensitive) and links to that instead of creating a duplicate —
+ *   typing a name that matches someone you've already added combines their
+ *   history rather than forking off a second, disconnected person.
+ * - Only creates a brand new Contact when no name match exists.
  */
 export async function resolveContact(ownerId: string, person: PersonInput) {
-  if (person.contactId) {
-    const contact = await prisma.contact.findFirst({
-      where: { id: person.contactId, ownerId },
-    });
-    if (!contact) throw new Error("Contact not found");
+  const existing = person.contactId
+    ? await prisma.contact.findFirst({ where: { id: person.contactId, ownerId } })
+    : await prisma.contact.findFirst({
+        where: { ownerId, name: { equals: person.name.trim(), mode: "insensitive" } },
+      });
+
+  if (person.contactId && !existing) throw new Error("Contact not found");
+
+  if (existing) {
     // Let the base currency be updated from this form if it changed.
-    if (person.baseCurrency && person.baseCurrency !== contact.baseCurrency) {
+    if (person.baseCurrency && person.baseCurrency !== existing.baseCurrency) {
       return prisma.contact.update({
-        where: { id: contact.id },
+        where: { id: existing.id },
         data: { baseCurrency: person.baseCurrency },
       });
     }
-    return contact;
+    return existing;
   }
 
   return prisma.contact.create({
     data: {
       ownerId,
-      name: person.name,
+      name: person.name.trim(),
       baseCurrency: person.baseCurrency || "USD",
     },
   });

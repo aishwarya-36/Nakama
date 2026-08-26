@@ -2,6 +2,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import PersonPicker, { PersonValue } from "./PersonPicker";
+import InfoTooltip from "./InfoTooltip";
 
 export default function NewGroupForm({ onSuccess }: { onSuccess?: () => void } = {}) {
   const router = useRouter();
@@ -60,11 +61,15 @@ export default function NewGroupForm({ onSuccess }: { onSuccess?: () => void } =
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-text">Other people in this group</label>
-        <p className="mb-2 text-xs text-text-faint">
-          Type a name — if it matches someone you've added before, pick them from the list to combine their
-          history. Typing a fresh name always creates a new person, even if it matches an existing one.
-        </p>
+        <label className="mb-2 flex items-center gap-1.5 text-sm font-medium text-text">
+          Other people in this group
+          <InfoTooltip>
+            <ul className="list-disc space-y-1 pl-3.5">
+              <li>Typing a name that matches someone you've added before links to them automatically.</li>
+              <li>To add a different person with the same name, make the name distinct (e.g. "John 2").</li>
+            </ul>
+          </InfoTooltip>
+        </label>
         <div className="space-y-2">
           {members.map((m, i) => (
             <PersonPicker

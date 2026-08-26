@@ -3,6 +3,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import PersonPicker, { PersonValue } from "./PersonPicker";
 import ExpenseTabsForm, { ExpensePayload, Participant } from "./ExpenseTabsForm";
+import InfoTooltip from "./InfoTooltip";
 
 interface GroupMemberOption {
   displayName: string;
@@ -107,10 +108,15 @@ export default function AddDirectExpenseForm({
       onSuccess={handleSuccess}
       detailsExtra={
         <div>
-          <label className="block text-sm font-medium text-text">With</label>
-          <p className="mb-2 text-xs text-text-faint">
-            Type a name — pick an existing person to combine their history, or type a fresh name to add someone new.
-          </p>
+          <label className="mb-2 flex items-center gap-1.5 text-sm font-medium text-text">
+            With
+            <InfoTooltip>
+              <ul className="list-disc space-y-1 pl-3.5">
+                <li>Typing a name that matches someone you've added before links to them automatically.</li>
+                <li>To add a different person with the same name, make the name distinct (e.g. "John 2").</li>
+              </ul>
+            </InfoTooltip>
+          </label>
           <div className="space-y-2">
             {people.map((p, i) => (
               <PersonPicker
