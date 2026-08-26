@@ -5,6 +5,7 @@ import {
   computeGroupBalances,
   convertBalancesToCurrency,
   simplifyDebts,
+  computePairwiseDebts,
   getGroupExpenseCurrencies,
 } from "@/lib/balances";
 
@@ -20,8 +21,9 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
   });
   if (!membership) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
+  const group = await prisma.group.findUnique({ where: { id: params.id }, select: { simplifyDebts: true } });
   const balances = await computeGroupBalances(params.id);
-  const debts = simplifyDebts(balances);
+  const debts = group?.simplifyDebts ? simplifyDebts(balances) : await computePairwiseDebts(params.id);
 
   // Currency options are grounded in reality: whatever currencies expenses
   // actually exist in, plus the viewer's own base currency — never an
@@ -32,8 +34,14 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
   const targetCurrency = req.nextUrl.searchParams.get("currency");
   if (targetCurrency) {
     const converted = await convertBalancesToCurrency(balances, targetCurrency);
-    return NextResponse.json({ balances: converted, debts, currency: targetCurrency, availableCurrencies });
+    return NextResponse.json({
+      balances: converted,
+      native: balances, // per-currency breakdown, shown alongside the converted total
+      debts,
+      currency: targetCurrency,
+      availableCurrencies,
+    });
   }
 
-  return NextResponse.json({ balances, debts, availableCurrencies });
+  return NextResponse.json({ balances, native: balances, debts, availableCurrencies });
 }

@@ -40,10 +40,9 @@ export default function BalancesPanel({
         if (cancelled) return;
         setDebts(data.debts || []);
         if (data.availableCurrencies) setAvailableCurrencies(data.availableCurrencies);
+        setNativeBalances(data.native || []);
         if (displayCurrency) {
           setConverted(data.balances || []);
-        } else {
-          setNativeBalances(data.balances || []);
         }
       })
       .finally(() => !cancelled && setLoading(false));
@@ -51,6 +50,8 @@ export default function BalancesPanel({
       cancelled = true;
     };
   }, [groupId, displayCurrency]);
+
+  const nativeByMember = new Map(nativeBalances.map((b) => [b.memberId, b.byCurrency]));
 
   const skippedCurrencies = displayCurrency
     ? Array.from(new Set(converted.flatMap((b) => b.skippedCurrencies)))
@@ -89,10 +90,16 @@ export default function BalancesPanel({
         <p className="text-sm text-text-faint">Loading…</p>
       ) : (
         <>
-          <div className="mb-4 space-y-1.5">
+          <div className="mb-4 space-y-2.5">
             {displayCurrency
               ? converted.map((b) => (
-                  <BalanceLine key={b.memberId} name={b.displayName} amount={b.total} currency={displayCurrency} />
+                  <BalanceLine
+                    key={b.memberId}
+                    name={b.displayName}
+                    amount={b.total}
+                    currency={displayCurrency}
+                    breakdown={nativeByMember.get(b.memberId)}
+                  />
                 ))
               : nativeBalances.map((b) =>
                   Object.entries(b.byCurrency).length === 0 ? (
@@ -131,16 +138,39 @@ export default function BalancesPanel({
   );
 }
 
-function BalanceLine({ name, amount, currency }: { name: string; amount: number; currency: string }) {
+function BalanceLine({
+  name,
+  amount,
+  currency,
+  breakdown,
+}: {
+  name: string;
+  amount: number;
+  currency: string;
+  breakdown?: Record<string, number>;
+}) {
   const rounded = Math.round(amount * 100) / 100;
   const color = rounded > 0.004 ? "text-success-text" : rounded < -0.004 ? "text-error" : "text-text-faint";
   const label = rounded > 0.004 ? "is owed" : rounded < -0.004 ? "owes" : "is settled up";
+  const breakdownEntries = Object.entries(breakdown || {}).filter(([, amt]) => Math.abs(amt) > 0.005);
+
   return (
-    <div className="flex items-center justify-between text-sm">
+    <div className="flex items-start justify-between text-sm">
       <span className="text-text">{name}</span>
-      <span className={color}>
-        {label} {rounded !== 0 && `${Math.abs(rounded).toFixed(2)} ${currency}`}
-      </span>
+      <div className="text-right">
+        <span className={color}>
+          {label} {rounded !== 0 && `${Math.abs(rounded).toFixed(2)} ${currency}`}
+        </span>
+        {breakdownEntries.length > 0 && (
+          <ul className="mt-0.5 space-y-0.5 text-xs text-text-faint">
+            {breakdownEntries.map(([c, amt]) => (
+              <li key={c}>
+                {amt > 0 ? "owed" : "owes"} {Math.abs(amt).toFixed(2)} {c}
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
     </div>
   );
 }

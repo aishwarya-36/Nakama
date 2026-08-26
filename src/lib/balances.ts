@@ -200,6 +200,79 @@ export async function computeMonthlySpending(
     total: Math.round(total * 100) / 100,
   }));
 }
+/**
+ * Actual pairwise debts (unsimplified): who owes whom directly, from each expense's
+ * splits attributed proportionally to that expense's payers, netted only within each
+ * (ower, payer) pair — never collapsed across the whole group. So A owes B and B owes
+ * C stay as two separate debts instead of being reduced to "A owes C".
+ */
+export async function computePairwiseDebts(groupId: string): Promise<SimplifiedDebt[]> {
+  const members = await prisma.groupMember.findMany({ where: { groupId } });
+  const nameById = new Map(members.map((m) => [m.id, m.displayName]));
+
+  // owed[ower][payer][currency] = how much `ower` owes `payer`
+  const owed = new Map<string, Map<string, Record<string, number>>>();
+  const bump = (owerId: string, payerId: string, currency: string, amount: number) => {
+    if (owerId === payerId || amount === 0) return;
+    if (!owed.has(owerId)) owed.set(owerId, new Map());
+    const byPayer = owed.get(owerId)!;
+    if (!byPayer.has(payerId)) byPayer.set(payerId, {});
+    const byCurrency = byPayer.get(payerId)!;
+    byCurrency[currency] = (byCurrency[currency] || 0) + amount;
+  };
+
+  const expenses = await prisma.expense.findMany({
+    where: { groupId },
+    include: { splits: true, payments: true },
+  });
+  for (const exp of expenses) {
+    const totalPaid = exp.payments.reduce((sum, p) => sum + Number(p.amount), 0);
+    if (totalPaid === 0) continue;
+    for (const split of exp.splits) {
+      const oweAmount = Number(split.amount);
+      for (const payment of exp.payments) {
+        const share = Number(payment.amount) / totalPaid;
+        bump(split.groupMemberId, payment.groupMemberId, exp.currency, oweAmount * share);
+      }
+    }
+  }
+
+  const settlements = await prisma.settlement.findMany({ where: { groupId } });
+  for (const s of settlements) {
+    bump(s.fromMemberId, s.toMemberId, s.currency, -Number(s.amount));
+  }
+
+  const result: SimplifiedDebt[] = [];
+  const seenPairs = new Set<string>();
+  for (const [owerId, byPayer] of owed) {
+    for (const [payerId, byCurrency] of byPayer) {
+      const pairKey = [owerId, payerId].sort().join("|");
+      for (const currency of Object.keys(byCurrency)) {
+        const key = `${pairKey}|${currency}`;
+        if (seenPairs.has(key)) continue; // already netted this pair+currency from the other direction
+        seenPairs.add(key);
+
+        const forward = owed.get(owerId)?.get(payerId)?.[currency] || 0;
+        const backward = owed.get(payerId)?.get(owerId)?.[currency] || 0;
+        const net = forward - backward;
+        if (Math.abs(net) < 0.005) continue;
+
+        const [fromId, toId] = net > 0 ? [owerId, payerId] : [payerId, owerId];
+        result.push({
+          fromMemberId: fromId,
+          fromName: nameById.get(fromId) || "",
+          toMemberId: toId,
+          toName: nameById.get(toId) || "",
+          amount: Math.round(Math.abs(net) * 100) / 100,
+          currency,
+        });
+      }
+    }
+  }
+
+  return result;
+}
+
 export function simplifyDebts(balances: MemberBalance[]): SimplifiedDebt[] {
   const currencies = new Set<string>();
   balances.forEach((b) => Object.keys(b.byCurrency).forEach((c) => currencies.add(c)));

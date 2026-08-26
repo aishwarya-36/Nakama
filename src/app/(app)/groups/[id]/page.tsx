@@ -5,6 +5,10 @@ import { prisma } from "@/lib/db";
 import AddGroupExpenseButton from "@/components/AddGroupExpenseButton";
 import AddMemberForm from "@/components/AddMemberForm";
 import BalancesPanel from "@/components/BalancesPanel";
+import GroupSettingsButton from "@/components/GroupSettingsButton";
+import GroupNameEditor from "@/components/GroupNameEditor";
+import GroupSummaryCard from "@/components/GroupSummaryCard";
+import ExpenseListItem from "@/components/ExpenseListItem";
 
 export default async function GroupPage({ params }: { params: { id: string } }) {
   const session = getSessionFromCookies();
@@ -15,7 +19,11 @@ export default async function GroupPage({ params }: { params: { id: string } }) 
     include: {
       members: true,
       expenses: {
-        include: { splits: true, payments: { include: { groupMember: true } } },
+        include: {
+          splits: true,
+          payments: { include: { groupMember: true } },
+          history: { orderBy: { createdAt: "desc" } },
+        },
         orderBy: { date: "desc" },
       },
     },
@@ -32,9 +40,18 @@ export default async function GroupPage({ params }: { params: { id: string } }) 
         ← All groups
       </Link>
       <div className="mb-6 mt-1 flex items-start justify-between gap-3">
-        <h1 className="text-2xl font-semibold text-text">{group.name}</h1>
-        <AddGroupExpenseButton groupId={group.id} members={group.members} />
+        <GroupNameEditor groupId={group.id} name={group.name} />
+        <div className="flex items-center gap-2">
+          <GroupSettingsButton
+            groupId={group.id}
+            defaultCurrency={group.defaultCurrency}
+            simplifyDebts={group.simplifyDebts}
+          />
+          <AddGroupExpenseButton groupId={group.id} members={group.members} defaultCurrency={group.defaultCurrency} />
+        </div>
       </div>
+
+      <GroupSummaryCard groupId={group.id} />
 
       <div className="mb-6 rounded-lg border border-border bg-surface p-5 shadow-sm">
         <div className="mb-3 flex items-center justify-between">
@@ -63,22 +80,41 @@ export default async function GroupPage({ params }: { params: { id: string } }) 
         <h2 className="mb-3 text-lg font-medium text-text">Expenses</h2>
         <div className="divide-y divide-border">
           {group.expenses.map((exp) => (
-            <div key={exp.id} className="flex items-center justify-between py-3">
-              <div>
-                <div className="font-medium text-text">{exp.description}</div>
-                <div className="text-sm text-text-muted">
-                  Paid by{" "}
-                  {exp.payments.length === 1
-                    ? exp.payments[0].groupMember.displayName
-                    : exp.payments.map((p) => p.groupMember.displayName).join(", ")}{" "}
-                  · {new Date(exp.date).toLocaleDateString()}
-                  {exp.category && ` · ${exp.category}`}
-                </div>
-              </div>
-              <div className="font-medium text-text">
-                {Number(exp.amount).toFixed(2)} {exp.currency}
-              </div>
-            </div>
+            <ExpenseListItem
+              key={exp.id}
+              groupId={group.id}
+              expenseId={exp.id}
+              members={group.members}
+              description={exp.description}
+              paidByLabel={
+                exp.payments.length === 1
+                  ? exp.payments[0].groupMember.displayName
+                  : exp.payments.map((p) => p.groupMember.displayName).join(", ")
+              }
+              dateLabel={new Date(exp.date).toLocaleDateString()}
+              category={exp.category}
+              amount={Number(exp.amount)}
+              currency={exp.currency}
+              initial={{
+                description: exp.description,
+                amount: Number(exp.amount),
+                currency: exp.currency,
+                category: exp.category || "",
+                notes: exp.notes || "",
+                date: exp.date.toISOString().slice(0, 10),
+                // Stored splits are always resolved dollar amounts regardless of the
+                // original split type (equal/percentage/shares), so editing always
+                // starts from the exact figures — switch tabs to re-split differently.
+                splitType: "EXACT",
+                payers: exp.payments.map((p) => ({ ref: p.groupMemberId, value: Number(p.amount) })),
+                splits: exp.splits.map((s) => ({ ref: s.groupMemberId, value: Number(s.amount) })),
+              }}
+              historyEntries={exp.history.map((h) => ({
+                summary: h.summary,
+                changedBy: h.changedBy,
+                createdAt: h.createdAt.toISOString(),
+              }))}
+            />
           ))}
           {group.expenses.length === 0 && (
             <p className="py-3 text-sm text-text-muted">No expenses yet.</p>
