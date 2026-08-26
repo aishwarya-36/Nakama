@@ -5,7 +5,15 @@ import AddExpenseForm from "./AddExpenseForm";
 
 type Member = { id: string; displayName: string };
 
-export default function AddGroupExpenseButton({ groupId, members }: { groupId: string; members: Member[] }) {
+export default function AddGroupExpenseButton({
+  groupId,
+  members,
+  defaultCurrency,
+}: {
+  groupId: string;
+  members: Member[];
+  defaultCurrency?: string;
+}) {
   const [open, setOpen] = useState(false);
   return (
     <>
@@ -16,7 +24,12 @@ export default function AddGroupExpenseButton({ groupId, members }: { groupId: s
         + Add expense
       </button>
       <Modal open={open} onClose={() => setOpen(false)} title="Add an expense">
-        <AddExpenseForm groupId={groupId} members={members} onSuccess={() => setOpen(false)} />
+        <AddExpenseForm
+          groupId={groupId}
+          members={members}
+          defaultCurrency={defaultCurrency}
+          onSuccess={() => setOpen(false)}
+        />
       </Modal>
     </>
   );

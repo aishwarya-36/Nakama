@@ -24,7 +24,13 @@ export interface ExpensePayload {
   splits?: { ref: string; value: number }[];
 }
 
-const TABS = ["Details", "Paid by", "Split"] as const;
+export interface ExpenseHistoryEntry {
+  summary: string;
+  changedBy: string;
+  createdAt: string;
+}
+
+const BASE_TABS = ["Details", "Paid by", "Split"] as const;
 
 function todayISODate() {
   return new Date().toISOString().slice(0, 10);
@@ -38,35 +44,49 @@ export default function ExpenseTabsForm({
   participants,
   defaultCurrency = "USD",
   detailsExtra,
+  initial,
+  historyEntries,
   onSubmit,
   onSuccess,
 }: {
   participants: Participant[];
   defaultCurrency?: string;
   detailsExtra?: React.ReactNode;
+  initial?: ExpensePayload;
+  historyEntries?: ExpenseHistoryEntry[];
   onSubmit: (payload: ExpensePayload) => Promise<{ ok: boolean; error?: string }>;
   onSuccess?: () => void;
 }) {
   const toast = useToast();
+  const isEdit = !!initial;
+  const TABS = historyEntries ? [...BASE_TABS, "History" as const] : BASE_TABS;
   const [tab, setTab] = useState(0);
   const [loading, setLoading] = useState(false);
 
-  const [description, setDescription] = useState("");
-  const [amount, setAmount] = useState("");
-  const [currency, setCurrency] = useState(defaultCurrency);
-  const [category, setCategory] = useState("");
-  const [notes, setNotes] = useState("");
-  const [date, setDate] = useState(todayISODate());
+  const [description, setDescription] = useState(initial?.description || "");
+  const [amount, setAmount] = useState(initial ? String(initial.amount) : "");
+  const [currency, setCurrency] = useState(initial?.currency || defaultCurrency);
+  const [category, setCategory] = useState(initial?.category || "");
+  const [notes, setNotes] = useState(initial?.notes || "");
+  const [date, setDate] = useState(initial?.date.slice(0, 10) || todayISODate());
 
   const defaultRef = participants[0]?.ref || "";
-  const [payerRefs, setPayerRefs] = useState<string[]>(defaultRef ? [defaultRef] : []);
-  const [payerValues, setPayerValues] = useState<Record<string, string>>({});
-
-  const [splitType, setSplitType] = useState<SplitType>("EQUAL");
-  const [included, setIncluded] = useState<Record<string, boolean>>(
-    Object.fromEntries(participants.map((p) => [p.ref, true]))
+  const [payerRefs, setPayerRefs] = useState<string[]>(
+    initial ? initial.payers.map((p) => p.ref) : defaultRef ? [defaultRef] : []
   );
-  const [splitValues, setSplitValues] = useState<Record<string, string>>({});
+  const [payerValues, setPayerValues] = useState<Record<string, string>>(
+    initial ? Object.fromEntries(initial.payers.map((p) => [p.ref, String(p.value)])) : {}
+  );
+
+  const [splitType, setSplitType] = useState<SplitType>(initial?.splitType || "EQUAL");
+  const [included, setIncluded] = useState<Record<string, boolean>>(
+    initial
+      ? Object.fromEntries(participants.map((p) => [p.ref, !!initial.splits?.some((s) => s.ref === p.ref)]))
+      : Object.fromEntries(participants.map((p) => [p.ref, true]))
+  );
+  const [splitValues, setSplitValues] = useState<Record<string, string>>(
+    initial ? Object.fromEntries((initial.splits || []).map((s) => [s.ref, String(s.value)])) : {}
+  );
 
   // Keep a lone payer's amount tracking the total — the common case is one payer.
   useEffect(() => {
@@ -169,10 +189,10 @@ export default function ExpenseTabsForm({
     const result = await onSubmit(payload);
     setLoading(false);
     if (!result.ok) {
-      toast.error(result.error || "Couldn't add expense");
+      toast.error(result.error || (isEdit ? "Couldn't save changes" : "Couldn't add expense"));
       return;
     }
-    toast.success("Expense added");
+    toast.success(isEdit ? "Expense updated" : "Expense added");
     onSuccess?.();
   }
 
@@ -207,16 +227,16 @@ export default function ExpenseTabsForm({
 
           <div>
             <label className="block text-sm font-medium text-text">Amount</label>
-            <input
-              type="number"
-              step="0.01"
-              min="0.01"
-              value={amount}
-              onChange={(e) => setAmount(e.target.value)}
-              placeholder="0.00"
-              className="mt-1 w-full rounded-md border border-border bg-surface px-3 py-2.5 text-lg tabular-nums outline-none focus:border-primary focus:ring-1 focus:ring-primary/40"
-            />
-            <div className="mt-2">
+            <div className="mt-1 flex gap-2">
+              <input
+                type="number"
+                step="0.01"
+                min="0.01"
+                value={amount}
+                onChange={(e) => setAmount(e.target.value)}
+                placeholder="0.00"
+                className="w-full min-w-0 rounded-md border border-border bg-surface px-3 py-2.5 text-lg tabular-nums outline-none focus:border-primary focus:ring-1 focus:ring-primary/40"
+              />
               <CurrencySelect value={currency} onChange={setCurrency} />
             </div>
           </div>
@@ -364,6 +384,25 @@ export default function ExpenseTabsForm({
         </div>
       )}
 
+      {tab === 3 && historyEntries && (
+        <div className="space-y-3">
+          {historyEntries.length === 0 ? (
+            <p className="text-sm text-text-faint">No changes recorded yet.</p>
+          ) : (
+            <ul className="space-y-2">
+              {historyEntries.map((h, i) => (
+                <li key={i} className="border-b border-border pb-2 text-sm last:border-0">
+                  <div className="text-text">{h.summary}</div>
+                  <div className="text-xs text-text-faint">
+                    {h.changedBy} · {new Date(h.createdAt).toLocaleString()}
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
+
       <div className="mt-6 flex items-center justify-between border-t border-border pt-4">
         <button
           type="button"
@@ -387,7 +426,7 @@ export default function ExpenseTabsForm({
             disabled={loading}
             className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-contrast hover:bg-primary-hover disabled:opacity-60"
           >
-            {loading ? "Adding…" : "Add expense"}
+            {loading ? (isEdit ? "Saving…" : "Adding…") : isEdit ? "Save changes" : "Add expense"}
           </button>
         )}
       </div>

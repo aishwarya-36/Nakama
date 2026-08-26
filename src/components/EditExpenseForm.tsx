@@ -1,18 +1,22 @@
 "use client";
 import { useRouter } from "next/navigation";
-import ExpenseTabsForm, { ExpensePayload } from "./ExpenseTabsForm";
+import ExpenseTabsForm, { ExpensePayload, ExpenseHistoryEntry } from "./ExpenseTabsForm";
 
 type Member = { id: string; displayName: string };
 
-export default function AddExpenseForm({
+export default function EditExpenseForm({
   groupId,
+  expenseId,
   members,
-  defaultCurrency,
+  initial,
+  historyEntries,
   onSuccess,
 }: {
   groupId: string;
+  expenseId: string;
   members: Member[];
-  defaultCurrency?: string;
+  initial: ExpensePayload;
+  historyEntries: ExpenseHistoryEntry[];
   onSuccess?: () => void;
 }) {
   const router = useRouter();
@@ -31,8 +35,8 @@ export default function AddExpenseForm({
       memberIds: payload.memberIds,
       splits: payload.splits?.map((s) => ({ groupMemberId: s.ref, value: s.value })),
     };
-    const res = await fetch(`/api/groups/${groupId}/expenses`, {
-      method: "POST",
+    const res = await fetch(`/api/groups/${groupId}/expenses/${expenseId}`, {
+      method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
     });
@@ -47,7 +51,9 @@ export default function AddExpenseForm({
   return (
     <ExpenseTabsForm
       participants={participants}
-      defaultCurrency={defaultCurrency}
+      defaultCurrency={initial.currency}
+      initial={initial}
+      historyEntries={historyEntries}
       onSubmit={handleSubmit}
       onSuccess={onSuccess}
     />

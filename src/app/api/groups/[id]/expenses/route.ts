@@ -76,6 +76,8 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   }
   const splitRows = result.map((r) => ({ groupMemberId: r.id, amount: r.amount }));
 
+  const actor = await prisma.groupMember.findFirst({ where: { groupId: params.id, userId: session.userId } });
+
   const expense = await prisma.expense.create({
     data: {
       groupId: params.id,
@@ -88,6 +90,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
       date: date ? new Date(date) : undefined,
       payments: { create: paymentRows },
       splits: { create: splitRows },
+      history: { create: { changedBy: actor?.displayName || "Someone", summary: "Created" } },
     },
     include: { splits: true, payments: { include: { groupMember: true } } },
   });
