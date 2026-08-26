@@ -30,19 +30,23 @@ model Contact {
   owner        User          @relation(fields: [ownerId], references: [id], onDelete: Cascade)
   name         String
   baseCurrency String        @default("USD")
+  email        String?       // optional contact info, not used for login/auth
+  upiId        String?
   createdAt    DateTime      @default(now())
   groupMembers GroupMember[]
 }
 
 model Group {
-  id          String        @id @default(uuid())
-  name        String
-  isPersonal  Boolean       @default(false) // true = implicit group behind a direct (no-group) expense, hidden from the Groups list
-  personalKey String?       @unique // canonical signature (owner + sorted contact ids) used to find-or-create the implicit group for a given set of people
-  createdAt   DateTime      @default(now())
-  members     GroupMember[]
-  expenses    Expense[]
-  settlements Settlement[]
+  id             String        @id @default(uuid())
+  name           String
+  isPersonal     Boolean       @default(false) // true = implicit group behind a direct (no-group) expense, hidden from the Groups list
+  personalKey    String?       @unique // canonical signature (owner + sorted contact ids) used to find-or-create the implicit group for a given set of people
+  defaultCurrency String       @default("USD") // pre-filled currency when adding an expense in this group
+  simplifyDebts  Boolean       @default(false) // when true, balances show minimal settle-up transactions instead of each pairwise debt
+  createdAt      DateTime      @default(now())
+  members        GroupMember[]
+  expenses       Expense[]
+  settlements    Settlement[]
 }
 
 // The core trick: this represents a PERSON in a group, not necessarily a User.
@@ -89,6 +93,18 @@ model Expense {
   createdAt   DateTime         @default(now())
   payments    ExpensePayment[] // who actually paid, and how much each — replaces paidById once the backfill lands
   splits      ExpenseSplit[]
+  history     ExpenseHistory[]
+}
+
+// An audit trail entry for an expense — one row per edit (plus one for creation),
+// so "who changed what and when" is visible from the expense's History tab.
+model ExpenseHistory {
+  id        String   @id @default(uuid())
+  expenseId String
+  expense   Expense  @relation(fields: [expenseId], references: [id], onDelete: Cascade)
+  changedBy String   // display name snapshot of whoever made the change
+  summary   String   // human-readable description, e.g. "Amount changed from 20.00 USD to 25.00 USD"
+  createdAt DateTime @default(now())
 }
 
 // One row per person who contributed money toward an expense — supports splitting
