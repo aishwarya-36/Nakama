@@ -55,7 +55,7 @@ A simplified Expenses app: Next.js (App Router, API routes) + Prisma + PostgreSQ
 1. **Install PostgreSQL locally** (or run it in Docker) and create a database:
 
    ```bash
-   createdb splitwise
+   createdb nakama
    ```
 
 2. **Copy the env file and fill it in:**

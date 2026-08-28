@@ -1,6 +1,6 @@
 # Nakama
 
-Splitwise-style expense splitter. Next.js 14 (App Router) + Prisma + PostgreSQL + TypeScript + Tailwind.
+Expense splitter for groups and friends. Next.js 14 (App Router) + Prisma + PostgreSQL + TypeScript + Tailwind.
 
 ## Stack notes
 
