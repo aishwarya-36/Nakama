@@ -1,6 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSessionFromCookies } from "@/lib/auth";
-import { getUserExpensesPage, rangeToFrom, EXPENSE_RANGES, type ExpenseRange } from "@/lib/userExpenses";
+import {
+  getUserExpensesPage,
+  rangeToFrom,
+  EXPENSE_RANGES,
+  EXPENSE_SCOPES,
+  type ExpenseRange,
+  type ExpenseScope,
+} from "@/lib/userExpenses";
 
 export async function GET(req: NextRequest) {
   const session = getSessionFromCookies();
@@ -9,9 +16,11 @@ export async function GET(req: NextRequest) {
   const params = req.nextUrl.searchParams;
   const rangeParam = params.get("range");
   const range = EXPENSE_RANGES.includes(rangeParam as ExpenseRange) ? (rangeParam as ExpenseRange) : undefined;
+  const scopeParam = params.get("scope");
+  const scope = EXPENSE_SCOPES.includes(scopeParam as ExpenseScope) ? (scopeParam as ExpenseScope) : undefined;
   const page = Math.max(1, parseInt(params.get("page") || "1", 10) || 1);
   const q = params.get("q")?.trim() || "";
 
-  const result = await getUserExpensesPage(session.userId, { from: rangeToFrom(range), page, pageSize: 10, q });
+  const result = await getUserExpensesPage(session.userId, { from: rangeToFrom(range), page, pageSize: 10, q, scope });
   return NextResponse.json(result);
 }

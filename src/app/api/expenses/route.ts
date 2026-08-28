@@ -23,7 +23,8 @@ const schema = z.object({
   notes: z.string().optional(),
   date: z.string().datetime().optional(),
   splitType: z.enum(["EQUAL", "EXACT", "PERCENTAGE", "SHARES"]).default("EQUAL"),
-  people: z.array(personSchema).min(1),
+  // Empty = a solo "my spend" entry with no one else on it.
+  people: z.array(personSchema),
   payers: z.array(z.object({ ref: refSchema, value: z.number() })).min(1),
   memberIds: z.array(refSchema).optional(),
   splits: z.array(z.object({ ref: refSchema, value: z.number() })).optional(),
@@ -129,6 +130,7 @@ export async function POST(req: NextRequest) {
       date: date ? new Date(date) : undefined,
       payments: { create: paymentRows },
       splits: { create: splitRows },
+      history: { create: { changedBy: meMember?.displayName || me.name, summary: "Created" } },
     },
     include: { splits: true, payments: { include: { groupMember: true } } },
   });

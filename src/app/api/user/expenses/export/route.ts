@@ -1,7 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import ExcelJS from "exceljs";
 import { getSessionFromCookies } from "@/lib/auth";
-import { getAllUserExpenses, rangeToFrom, EXPENSE_RANGES, type ExpenseRange } from "@/lib/userExpenses";
+import {
+  getAllUserExpenses,
+  rangeToFrom,
+  EXPENSE_RANGES,
+  EXPENSE_SCOPES,
+  type ExpenseRange,
+  type ExpenseScope,
+} from "@/lib/userExpenses";
 
 export async function GET(req: NextRequest) {
   const session = getSessionFromCookies();
@@ -10,8 +17,10 @@ export async function GET(req: NextRequest) {
   const params = req.nextUrl.searchParams;
   const rangeParam = params.get("range");
   const range = EXPENSE_RANGES.includes(rangeParam as ExpenseRange) ? (rangeParam as ExpenseRange) : undefined;
+  const scopeParam = params.get("scope");
+  const scope = EXPENSE_SCOPES.includes(scopeParam as ExpenseScope) ? (scopeParam as ExpenseScope) : undefined;
 
-  const rows = await getAllUserExpenses(session.userId, rangeToFrom(range));
+  const rows = await getAllUserExpenses(session.userId, rangeToFrom(range), undefined, scope);
 
   const workbook = new ExcelJS.Workbook();
   const sheet = workbook.addWorksheet("Expenses");

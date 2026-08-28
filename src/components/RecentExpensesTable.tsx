@@ -26,8 +26,15 @@ const RANGE_OPTIONS: { value: string; label: string }[] = [
   { value: "year", label: "Past year" },
 ];
 
+const SCOPE_OPTIONS: { value: string; label: string }[] = [
+  { value: "", label: "All spending" },
+  { value: "mine", label: "My spends" },
+  { value: "group", label: "Group spends" },
+];
+
 export default function RecentExpensesTable() {
   const [range, setRange] = useState("");
+  const [scope, setScope] = useState("");
   const [q, setQ] = useState("");
   const [page, setPage] = useState(1);
   const [rows, setRows] = useState<Row[]>([]);
@@ -35,11 +42,12 @@ export default function RecentExpensesTable() {
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState<{ groupId: string; expenseId: string } | null>(null);
 
-  const load = useCallback(async (r: string, query: string, targetPage: number, replace: boolean) => {
+  const load = useCallback(async (r: string, s: string, query: string, targetPage: number, replace: boolean) => {
     setLoading(true);
     const qs = new URLSearchParams({
       page: String(targetPage),
       ...(r ? { range: r } : {}),
+      ...(s ? { scope: s } : {}),
       ...(query ? { q: query } : {}),
     });
     const res = await fetch(`/api/user/expenses?${qs}`);
@@ -51,14 +59,14 @@ export default function RecentExpensesTable() {
 
   useEffect(() => {
     setPage(1);
-    load(range, q, 1, true);
-  }, [range, q, load]);
+    load(range, scope, q, 1, true);
+  }, [range, scope, q, load]);
 
   function loadMore() {
     if (loading || rows.length >= total) return;
     const nextPage = page + 1;
     setPage(nextPage);
-    load(range, q, nextPage, false);
+    load(range, scope, q, nextPage, false);
   }
 
   const sentinelRef = useInfiniteScrollSentinel(loadMore, !loading && rows.length < total);
@@ -67,6 +75,17 @@ export default function RecentExpensesTable() {
     <div>
       <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
         <div className="flex items-center gap-2">
+          <select
+            value={scope}
+            onChange={(e) => setScope(e.target.value)}
+            className="rounded-md border border-border bg-surface px-3 py-1.5 text-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary/40"
+          >
+            {SCOPE_OPTIONS.map((o) => (
+              <option key={o.value} value={o.value}>
+                {o.label}
+              </option>
+            ))}
+          </select>
           <select
             value={range}
             onChange={(e) => setRange(e.target.value)}
@@ -81,7 +100,10 @@ export default function RecentExpensesTable() {
           <SearchToggle onSearch={setQ} placeholder="Search expenses…" />
         </div>
         <a
-          href={`/api/user/expenses/export${range ? `?range=${range}` : ""}`}
+          href={`/api/user/expenses/export?${new URLSearchParams({
+            ...(range ? { range } : {}),
+            ...(scope ? { scope } : {}),
+          })}`}
           className="rounded-md border border-border px-3 py-1.5 text-sm font-medium text-text-muted hover:border-border-strong hover:text-text"
         >
           Download as Excel
@@ -145,7 +167,7 @@ export default function RecentExpensesTable() {
         onClose={() => setEditing(null)}
         onSaved={() => {
           setPage(1);
-          load(range, q, 1, true);
+          load(range, scope, q, 1, true);
         }}
       />
     </div>
