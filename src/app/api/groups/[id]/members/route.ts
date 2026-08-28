@@ -10,8 +10,6 @@ const schema = z.object({
   baseCurrency: z.string().length(3).optional(),
 });
 
-// Adds a new member to a group — either a brand new guest (by name), or an
-// existing contact (by contactId) so their history combines across groups.
 export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
   const session = getSessionFromCookies();
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

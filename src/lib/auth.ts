@@ -30,7 +30,6 @@ export function verifySession(token: string): SessionPayload | null {
   }
 }
 
-// Reads the session cookie in a Server Component / Route Handler context.
 export function getSessionFromCookies(): SessionPayload | null {
   const token = cookies().get(COOKIE_NAME)?.value;
   if (!token) return null;

@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { getSessionFromCookies } from "@/lib/auth";
 import { prisma } from "@/lib/db";
-import GroupsList from "@/components/GroupsList";
+import GroupsList from "@/components/groups/GroupsList";
 import { GROUPS_PAGE_SIZE } from "@/lib/groups";
 
 export default async function GroupsPage() {

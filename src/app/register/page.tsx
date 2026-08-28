@@ -2,7 +2,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import AuthBackground from "@/components/AuthBackground";
+import AuthBackground from "@/components/layout/AuthBackground";
 
 export default function RegisterPage() {
   const router = useRouter();

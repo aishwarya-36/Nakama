@@ -1,30 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
-import { z } from "zod";
 import { prisma } from "@/lib/db";
 import { getSessionFromCookies } from "@/lib/auth";
 import { computeSplitRows, validatePayers } from "@/lib/splits";
 import { diffExpense, type ExpenseSnapshot } from "@/lib/expenseHistory";
+import { expenseWithGroupMemberIdsSchema } from "@/lib/expenseSchemas";
 
 async function assertMember(groupId: string, userId: string) {
   return !!(await prisma.groupMember.findFirst({ where: { groupId, userId } }));
 }
 
-const patchSchema = z.object({
-  description: z.string().min(1),
-  amount: z.number().positive(),
-  currency: z.string().length(3),
-  category: z.string().optional(),
-  notes: z.string().optional(),
-  date: z.string().datetime().optional(),
-  payers: z.array(z.object({ groupMemberId: z.string().uuid(), value: z.number() })).min(1),
-  splitType: z.enum(["EQUAL", "EXACT", "PERCENTAGE", "SHARES"]).default("EQUAL"),
-  memberIds: z.array(z.string().uuid()).optional(),
-  splits: z.array(z.object({ groupMemberId: z.string().uuid(), value: z.number() })).optional(),
-});
+const patchSchema = expenseWithGroupMemberIdsSchema;
 
-// GET: a single expense plus its group's members and change history — used to
-// lazily open the edit modal from places that don't already have this loaded
-// (e.g. the cross-group "recent spending" table).
+// GET: expense + group members + history, for the edit modal.
 export async function GET(_req: Request, { params }: { params: { id: string; expenseId: string } }) {
   const session = getSessionFromCookies();
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -50,9 +37,7 @@ export async function GET(_req: Request, { params }: { params: { id: string; exp
   return NextResponse.json({ expense, members, group, selfMemberId: actor?.id });
 }
 
-// PATCH: edit an existing group expense. Replaces its payments/splits wholesale
-// and records a single ExpenseHistory entry summarizing what changed, so the
-// modal's History tab can show who changed what and when.
+// PATCH: replace payments/splits, record a history entry.
 export async function PATCH(req: NextRequest, { params }: { params: { id: string; expenseId: string } }) {
   const session = getSessionFromCookies();
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

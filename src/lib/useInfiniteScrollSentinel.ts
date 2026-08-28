@@ -1,7 +1,6 @@
 "use client";
 import { useEffect, useRef } from "react";
 
-/** Attach the returned ref to a sentinel element; onIntersect fires once it scrolls into view. */
 export function useInfiniteScrollSentinel(onIntersect: () => void, enabled: boolean) {
   const ref = useRef<HTMLDivElement>(null);
 

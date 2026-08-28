@@ -118,7 +118,6 @@ function applyOweFilter(rows: UserExpenseRow[], owe?: ExpenseOweFilter): UserExp
   return rows;
 }
 
-/** Paginated page of the user's expenses across every group (real + direct), newest first. */
 export async function getUserExpensesPage(
   userId: string,
   opts: {
@@ -166,7 +165,6 @@ export async function getUserExpensesPage(
   return { rows: paged, total, page, pageSize };
 }
 
-/** Every matching expense (no pagination) — for export. */
 export async function getAllUserExpenses(
   userId: string,
   from?: Date,

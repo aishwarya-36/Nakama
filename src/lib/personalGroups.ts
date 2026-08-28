@@ -1,15 +1,6 @@
 import { prisma } from "./db";
 
-/**
- * Finds (or creates) the implicit group backing a direct, no-group expense
- * between the owner and a fixed set of contacts. Contact ids are globally
- * unique (uuid pk), so the sorted-id signature alone is a safe, collision-free
- * key across users — no need to prefix it with the owner id.
- *
- * The empty-contacts case (a solo "my spend") has no contact id to anchor the
- * key, so it's prefixed with the owner id instead — otherwise every user's
- * solo-spend group would collide on the same key ("").
- */
+// key = sorted contact ids, or "solo:<ownerId>" for a no-contact solo spend.
 export async function findOrCreatePersonalGroup(
   ownerId: string,
   ownerName: string,

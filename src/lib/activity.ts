@@ -14,19 +14,14 @@ export interface ActivityItem {
 
 type MemberRef = { userId: string | null; contactId: string | null };
 
-/** A personal (direct-expense) group has no page of its own worth visiting —
- *  send the viewer to the other participant's People page instead. Falls back
- *  to the group page if no linkable contact is found (e.g. all-guest groups
- *  with no saved contact, which shouldn't normally happen). */
+// Personal groups have no page of their own — link to the other person instead.
 function groupHref(groupId: string, isPersonal: boolean, members: MemberRef[], userId: string): string {
   if (!isPersonal) return `/groups/${groupId}`;
   const other = members.find((m) => m.userId !== userId && m.contactId);
   return other?.contactId ? `/people/${other.contactId}` : `/groups/${groupId}`;
 }
 
-/** Every action this user has personally taken — creating groups, adding or
- *  editing expenses, recording settlements — newest first. Combines three
- *  otherwise-unrelated tables since none of them share a single log. */
+// Combines groups/expenses/settlements into one feed, newest first.
 export async function getUserActivity(
   userId: string,
   opts: { page?: number; pageSize?: number } = {}

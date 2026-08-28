@@ -53,9 +53,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   return NextResponse.json({ group });
 }
 
-// DELETE: permanently remove the group. Only allowed once every member's balance
-// nets to zero in every currency — deleting a group with outstanding money owed
-// would silently erase who owed whom.
+// DELETE: only once every member's balance is zero.
 export async function DELETE(_req: Request, { params }: { params: { id: string } }) {
   const session = getSessionFromCookies();
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

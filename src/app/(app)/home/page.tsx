@@ -2,9 +2,9 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getSessionFromCookies } from "@/lib/auth";
 import { prisma } from "@/lib/db";
-import OverviewCards from "@/components/OverviewCards";
-import AddExpenseButton from "@/components/AddExpenseButton";
-import RecentExpensesTable from "@/components/RecentExpensesTable";
+import OverviewCards from "@/components/home/OverviewCards";
+import AddExpenseButton from "@/components/expenses/AddExpenseButton";
+import RecentExpensesTable from "@/components/expenses/RecentExpensesTable";
 
 export default async function HomePage() {
   const session = getSessionFromCookies();

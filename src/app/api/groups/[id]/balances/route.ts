@@ -25,9 +25,6 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
   const balances = await computeGroupBalances(params.id);
   const debts = group?.simplifyDebts ? simplifyDebts(balances) : await computePairwiseDebts(params.id);
 
-  // Currency options are grounded in reality: whatever currencies expenses
-  // actually exist in, plus the viewer's own base currency — never an
-  // arbitrary full list.
   const expenseCurrencies = await getGroupExpenseCurrencies(params.id);
   const availableCurrencies = Array.from(new Set([...expenseCurrencies, me.baseCurrency]));
 

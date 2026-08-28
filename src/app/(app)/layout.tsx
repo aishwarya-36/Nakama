@@ -1,8 +1,8 @@
 import { redirect } from "next/navigation";
 import { getSessionFromCookies } from "@/lib/auth";
 import { prisma } from "@/lib/db";
-import Sidebar from "@/components/Sidebar";
-import ToastProvider from "@/components/ToastProvider";
+import Sidebar from "@/components/layout/Sidebar";
+import ToastProvider from "@/components/ui/ToastProvider";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const session = getSessionFromCookies();

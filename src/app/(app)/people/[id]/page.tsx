@@ -3,7 +3,9 @@ import Link from "next/link";
 import { getSessionFromCookies } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { getContactBalanceByCurrency, getContactExpenses } from "@/lib/people";
-import ExpenseListItem from "@/components/ExpenseListItem";
+import ExpenseListItem from "@/components/expenses/ExpenseListItem";
+import PersonAddExpenseButton from "@/components/people/PersonAddExpenseButton";
+import PersonBalanceActions from "@/components/people/PersonBalanceActions";
 
 export default async function PersonPage({ params }: { params: { id: string } }) {
   const session = getSessionFromCookies();
@@ -13,6 +15,9 @@ export default async function PersonPage({ params }: { params: { id: string } })
     where: { id: params.id, ownerId: session.userId },
   });
   if (!contact) notFound();
+
+  const me = await prisma.user.findUnique({ where: { id: session.userId } });
+  if (!me) redirect("/login");
 
   const [byCurrency, expenses] = await Promise.all([
     getContactBalanceByCurrency(contact.id),
@@ -25,8 +30,12 @@ export default async function PersonPage({ params }: { params: { id: string } })
       <Link href="/people" className="text-sm text-text-muted hover:text-primary">
         ← All people
       </Link>
-      <div className="mb-6 mt-1">
+      <div className="mb-6 mt-1 flex items-start justify-between gap-3">
         <h1 className="text-2xl font-semibold text-text">{contact.name}</h1>
+        <PersonAddExpenseButton
+          contact={{ id: contact.id, name: contact.name, baseCurrency: contact.baseCurrency }}
+          userName={me.name}
+        />
       </div>
 
       <div className="mb-6 rounded-lg border border-border bg-surface p-5 shadow-sm">
@@ -42,6 +51,7 @@ export default async function PersonPage({ params }: { params: { id: string } })
             ))}
           </ul>
         )}
+        <PersonBalanceActions contactId={contact.id} contactName={contact.name} defaultCurrency={me.baseCurrency} />
       </div>
 
       <div className="rounded-lg border border-border bg-surface p-5 shadow-sm">
@@ -67,9 +77,7 @@ export default async function PersonPage({ params }: { params: { id: string } })
                 category: exp.category || "",
                 notes: exp.notes || "",
                 date: exp.date.toISOString().slice(0, 10),
-                // Stored splits are always resolved dollar amounts regardless of the
-                // original split type, so editing always starts from exact figures.
-                splitType: "EXACT",
+                splitType: "EXACT", // stored splits are always resolved dollar amounts
                 payers: exp.payments.map((p) => ({ ref: p.groupMemberId, value: p.amount })),
                 splits: exp.splits.map((s) => ({ ref: s.groupMemberId, value: s.amount })),
               }}

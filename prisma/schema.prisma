@@ -19,11 +19,7 @@ model User {
   contacts     Contact[]     // guest identities this user has created (their private "address book")
 }
 
-// A guest identity owned by a User — lets the same "person" (e.g. a friend without
-// an account) be reused across multiple groups so their history combines on the
-// owner's personal dashboard, instead of becoming a fresh disconnected person each time.
-// Two different people can share the same name; they're only the same Contact if the
-// owner explicitly picked the existing suggestion when adding them to a group.
+// A reusable guest identity, owned by one User, shared across their groups.
 model Contact {
   id           String        @id @default(uuid())
   ownerId      String
@@ -34,26 +30,28 @@ model Contact {
   upiId        String?
   createdAt    DateTime      @default(now())
   groupMembers GroupMember[]
+
+  @@index([ownerId])
 }
 
 model Group {
   id             String        @id @default(uuid())
   name           String
-  isPersonal     Boolean       @default(false) // true = implicit group behind a direct (no-group) expense, hidden from the Groups list
-  personalKey    String?       @unique // canonical signature (owner + sorted contact ids) used to find-or-create the implicit group for a given set of people
-  defaultCurrency String       @default("USD") // pre-filled currency when adding an expense in this group
-  simplifyDebts  Boolean       @default(false) // when true, balances show minimal settle-up transactions instead of each pairwise debt
-  createdById    String?       // userId of whoever created it, for the History tab's activity feed — no FK, just a stamp
+  isPersonal     Boolean       @default(false) // implicit group behind a direct expense, hidden from Groups
+  personalKey    String?       @unique // owner + sorted contact ids
+  defaultCurrency String       @default("USD")
+  simplifyDebts  Boolean       @default(false)
+  createdById    String?       // for the History feed — no FK, just a stamp
   createdAt      DateTime      @default(now())
   members        GroupMember[]
   expenses       Expense[]
   settlements    Settlement[]
+
+  @@index([createdById])
 }
 
-// The core trick: this represents a PERSON in a group, not necessarily a User.
-// It may or may not be linked to a real account (userId nullable).
-// All money (who paid, who owes) points at GroupMember, never directly at User,
-// so a guest can be "claimed" by a real account later without touching history.
+// A person in a group — may or may not be linked to a real User. All money
+// points here, never directly at User, so a guest can be claimed later.
 model GroupMember {
   id          String   @id @default(uuid())
   groupId     String
@@ -71,6 +69,8 @@ model GroupMember {
   settlementsTo    Settlement[]   @relation("SettlementTo")
 
   @@unique([groupId, userId]) // a real account can only appear once per group
+  @@index([userId]) // lookups across every group a user belongs to (userId alone, not paired with groupId)
+  @@index([contactId]) // lookups across every group a contact belongs to
 }
 
 enum SplitType {
@@ -85,32 +85,35 @@ model Expense {
   groupId     String
   group       Group            @relation(fields: [groupId], references: [id], onDelete: Cascade)
   description String
-  amount      Decimal          @db.Decimal(12, 2) // total amount, in `currency`
-  currency    String           // ISO 4217 code, e.g. "USD"
-  category    String?          // a known key ("food", "movie", ...) or free text typed under "Other"
+  amount      Decimal          @db.Decimal(12, 2)
+  currency    String
+  category    String?
   notes       String?
   splitType   SplitType        @default(EQUAL)
-  date        DateTime         @default(now()) // the invoice date — when the expense happened, not when it was entered
+  date        DateTime         @default(now()) // invoice date, not when it was entered
   createdAt   DateTime         @default(now())
-  payments    ExpensePayment[] // who actually paid, and how much each — replaces paidById once the backfill lands
+  payments    ExpensePayment[]
   splits      ExpenseSplit[]
   history     ExpenseHistory[]
+
+  @@index([groupId])
 }
 
-// An audit trail entry for an expense — one row per edit (plus one for creation),
-// so "who changed what and when" is visible from the expense's History tab.
+// One row per expense edit (plus one for creation).
 model ExpenseHistory {
   id          String   @id @default(uuid())
   expenseId   String
   expense     Expense  @relation(fields: [expenseId], references: [id], onDelete: Cascade)
-  changedBy   String   // display name snapshot of whoever made the change
-  actorUserId String?  // userId of whoever made the change, for the History tab's activity feed — no FK, just a stamp
-  summary     String   // human-readable description, e.g. "Amount changed from 20.00 USD to 25.00 USD"
+  changedBy   String
+  actorUserId String?  // for the History feed — no FK, just a stamp
+  summary     String
   createdAt   DateTime @default(now())
+
+  @@index([expenseId])
+  @@index([actorUserId])
 }
 
-// One row per person who contributed money toward an expense — supports splitting
-// the bill three ways for who *paid*, not just who owes.
+// Who paid, and how much (supports multiple payers per expense).
 model ExpensePayment {
   id            String      @id @default(uuid())
   expenseId     String
@@ -118,21 +121,25 @@ model ExpensePayment {
   groupMemberId String
   groupMember   GroupMember @relation(fields: [groupMemberId], references: [id])
   amount        Decimal     @db.Decimal(12, 2)
+
+  @@index([expenseId])
+  @@index([groupMemberId])
 }
 
-// One row per group member per expense: how much of that expense they owe.
+// How much each member owes for an expense.
 model ExpenseSplit {
   id            String      @id @default(uuid())
   expenseId     String
   expense       Expense     @relation(fields: [expenseId], references: [id], onDelete: Cascade)
   groupMemberId String
   groupMember   GroupMember @relation(fields: [groupMemberId], references: [id])
-  amount        Decimal     @db.Decimal(12, 2) // this member's owed share, in the expense's currency
+  amount        Decimal     @db.Decimal(12, 2)
 
   @@unique([expenseId, groupMemberId])
+  @@index([groupMemberId])
 }
 
-// A direct payment recorded to settle up between two members (not tied to a specific expense).
+// A payment between two members, not tied to a specific expense.
 model Settlement {
   id            String      @id @default(uuid())
   groupId       String
@@ -145,5 +152,10 @@ model Settlement {
   currency      String
   date          DateTime    @default(now())
   note          String?
-  recordedById  String?     // userId of whoever recorded it, for the History tab's activity feed — no FK, just a stamp
+  recordedById  String?     // for the History feed — no FK, just a stamp
+
+  @@index([groupId])
+  @@index([fromMemberId])
+  @@index([toMemberId])
+  @@index([recordedById])
 }

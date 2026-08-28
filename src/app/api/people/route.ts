@@ -4,8 +4,6 @@ import { prisma } from "@/lib/db";
 import { getSessionFromCookies } from "@/lib/auth";
 import { getPeopleWithBalances, PEOPLE_PAGE_SIZE } from "@/lib/people";
 
-// Lists a page of the user's contacts, optionally name-filtered (case-insensitive),
-// with balances converted to the user's base currency.
 export async function GET(req: NextRequest) {
   const session = getSessionFromCookies();
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -32,8 +30,6 @@ const schema = z.object({
   upiId: z.string().optional(),
 });
 
-// Adds a person directly, with no group attached yet — they only end up in a
-// group (implicit or real) once an expense is actually shared with them.
 export async function POST(req: NextRequest) {
   const session = getSessionFromCookies();
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

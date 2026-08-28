@@ -2,14 +2,14 @@ import { redirect, notFound } from "next/navigation";
 import Link from "next/link";
 import { getSessionFromCookies } from "@/lib/auth";
 import { prisma } from "@/lib/db";
-import AddGroupExpenseButton from "@/components/AddGroupExpenseButton";
-import AddMemberForm from "@/components/AddMemberForm";
-import BalancesPanel from "@/components/BalancesPanel";
-import GroupBalanceCards from "@/components/GroupBalanceCards";
-import GroupSettingsButton from "@/components/GroupSettingsButton";
-import GroupNameEditor from "@/components/GroupNameEditor";
-import GroupSummaryCard from "@/components/GroupSummaryCard";
-import ExpenseListItem from "@/components/ExpenseListItem";
+import AddGroupExpenseButton from "@/components/expenses/AddGroupExpenseButton";
+import AddMemberForm from "@/components/groups/AddMemberForm";
+import BalancesPanel from "@/components/groups/BalancesPanel";
+import GroupBalanceCards from "@/components/groups/GroupBalanceCards";
+import GroupSettingsButton from "@/components/groups/GroupSettingsButton";
+import GroupNameEditor from "@/components/groups/GroupNameEditor";
+import GroupSummaryCard from "@/components/groups/GroupSummaryCard";
+import ExpenseListItem from "@/components/expenses/ExpenseListItem";
 
 export default async function GroupPage({ params }: { params: { id: string } }) {
   const session = getSessionFromCookies();
@@ -105,10 +105,7 @@ export default async function GroupPage({ params }: { params: { id: string } }) 
                 category: exp.category || "",
                 notes: exp.notes || "",
                 date: exp.date.toISOString().slice(0, 10),
-                // Stored splits are always resolved dollar amounts regardless of the
-                // original split type (equal/percentage/shares), so editing always
-                // starts from the exact figures — switch tabs to re-split differently.
-                splitType: "EXACT",
+                splitType: "EXACT", // stored splits are always resolved dollar amounts
                 payers: exp.payments.map((p) => ({ ref: p.groupMemberId, value: Number(p.amount) })),
                 splits: exp.splits.map((s) => ({ ref: s.groupMemberId, value: Number(s.amount) })),
               }}

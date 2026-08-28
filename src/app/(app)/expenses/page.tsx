@@ -1,10 +1,10 @@
 import { redirect } from "next/navigation";
 import { getSessionFromCookies } from "@/lib/auth";
 import { prisma } from "@/lib/db";
-import OverviewCards from "@/components/OverviewCards";
-import MonthlySpendingChart from "@/components/MonthlySpendingChart";
-import AddExpenseButton from "@/components/AddExpenseButton";
-import RecentExpensesTable from "@/components/RecentExpensesTable";
+import OverviewCards from "@/components/home/OverviewCards";
+import MonthlySpendingChart from "@/components/home/MonthlySpendingChart";
+import AddExpenseButton from "@/components/expenses/AddExpenseButton";
+import RecentExpensesTable from "@/components/expenses/RecentExpensesTable";
 
 export default async function ExpensesPage() {
   const session = getSessionFromCookies();

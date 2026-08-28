@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { getSessionFromCookies } from "@/lib/auth";
-import ActivityList from "@/components/ActivityList";
+import ActivityList from "@/components/home/ActivityList";
 
 export default function HistoryPage() {
   const session = getSessionFromCookies();

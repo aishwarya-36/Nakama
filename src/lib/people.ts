@@ -2,7 +2,6 @@ import { prisma } from "./db";
 import { convert } from "./currency";
 import { computeGroupBalances } from "./balances";
 
-/** Net balance for a contact, per currency, across every group they belong to. */
 export async function getContactBalanceByCurrency(contactId: string): Promise<Record<string, number>> {
   const members = await prisma.groupMember.findMany({ where: { contactId } });
   const totals: Record<string, number> = {};
@@ -34,7 +33,6 @@ export interface ContactExpenseRow {
   history: { summary: string; changedBy: string; createdAt: Date }[];
 }
 
-/** Every expense (across every group and direct-expense thread) this contact is part of, newest first. */
 export async function getContactExpenses(contactId: string): Promise<ContactExpenseRow[]> {
   const memberships = await prisma.groupMember.findMany({
     where: { contactId },
@@ -98,7 +96,6 @@ export interface PersonSummary {
   skippedCurrencies: string[];
 }
 
-/** A page of the user's contacts (optionally name-filtered), with balances converted to the user's base currency. */
 export async function getPeopleWithBalances(
   userId: string,
   targetCurrency: string,

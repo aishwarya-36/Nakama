@@ -44,8 +44,7 @@ const schema = z.object({
   members: z.array(personSchema).default([]),
 });
 
-// POST: create a group. You just type member names (or pick an existing contact) —
-// no accounts required. The creator is added automatically, linked to their own account.
+// POST: create a group, adding the creator automatically.
 export async function POST(req: NextRequest) {
   const session = getSessionFromCookies();
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

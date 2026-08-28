@@ -9,7 +9,6 @@ export const metadata: Metadata = {
   description: "Split expenses with friends, no account required for everyone.",
 };
 
-// Runs before React hydrates so the page never flashes the wrong theme.
 const THEME_INIT_SCRIPT = `
   (function () {
     try {

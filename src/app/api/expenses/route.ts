@@ -4,7 +4,8 @@ import { prisma } from "@/lib/db";
 import { getSessionFromCookies } from "@/lib/auth";
 import { resolveContact } from "@/lib/contacts";
 import { findOrCreatePersonalGroup } from "@/lib/personalGroups";
-import { computeSplitRows, validatePayers } from "@/lib/splits";
+import { createExpense } from "@/lib/expenses";
+import { expenseCoreFields } from "@/lib/expenseSchemas";
 
 const personSchema = z.object({
   name: z.string().min(1),
@@ -12,27 +13,17 @@ const personSchema = z.object({
   baseCurrency: z.string().length(3).optional(),
 });
 
-// A participant ref is "me" or "person:<index into people[]>".
+// ref: "me" or "person:<index>"
 const refSchema = z.string().regex(/^(me|person:\d+)$/);
 
 const schema = z.object({
-  description: z.string().min(1),
-  amount: z.number().positive(),
-  currency: z.string().length(3),
-  category: z.string().optional(),
-  notes: z.string().optional(),
-  date: z.string().datetime().optional(),
-  splitType: z.enum(["EQUAL", "EXACT", "PERCENTAGE", "SHARES"]).default("EQUAL"),
-  // Empty = a solo "my spend" entry with no one else on it.
+  ...expenseCoreFields,
   people: z.array(personSchema),
   payers: z.array(z.object({ ref: refSchema, value: z.number() })).min(1),
   memberIds: z.array(refSchema).optional(),
   splits: z.array(z.object({ ref: refSchema, value: z.number() })).optional(),
 });
 
-// Adds an expense shared directly with one or more people, with no explicit
-// group. Behind the scenes it's still backed by a group (find-or-create,
-// hidden from the Groups list) — money always flows through GroupMember.
 export async function POST(req: NextRequest) {
   const session = getSessionFromCookies();
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -64,7 +55,6 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "One of the selected people is invalid" }, { status: 400 });
   }
 
-  // ref ("me" / "person:<i>") -> actual GroupMember id
   const refToMemberId = new Map<string, string>();
   const meMember = group.members.find((m) => m.userId === me.id);
   if (meMember) refToMemberId.set("me", meMember.id);
@@ -77,20 +67,12 @@ export async function POST(req: NextRequest) {
     return refToMemberId.get(ref) || null;
   }
 
-  const validIds = new Set(group.members.map((m) => m.id));
-  const allIds = group.members.map((m) => m.id);
-
   const resolvedPayers: { id: string; value: number }[] = [];
   for (const p of payers) {
     const id = resolveRef(p.ref);
     if (!id) return NextResponse.json({ error: "Invalid payer" }, { status: 400 });
     resolvedPayers.push({ id, value: p.value });
   }
-  const payerResult = validatePayers(resolvedPayers, amount, validIds);
-  if ("error" in payerResult) {
-    return NextResponse.json({ error: payerResult.error }, { status: 400 });
-  }
-  const paymentRows = payerResult.map((r) => ({ groupMemberId: r.id, amount: r.amount }));
 
   const resolvedMemberIds: string[] = [];
   for (const ref of memberIds || []) {
@@ -105,35 +87,24 @@ export async function POST(req: NextRequest) {
     resolvedSplits.push({ id, value: s.value });
   }
 
-  const result = computeSplitRows(
-    splitType,
+  const result = await createExpense({
+    groupId: group.id,
+    description,
     amount,
-    validIds,
-    allIds,
-    memberIds ? resolvedMemberIds : undefined,
-    splits ? resolvedSplits : undefined
-  );
-  if ("error" in result) {
+    currency,
+    category,
+    notes,
+    date,
+    splitType,
+    payers: resolvedPayers,
+    memberIds: memberIds ? resolvedMemberIds : undefined,
+    splits: splits ? resolvedSplits : undefined,
+    changedBy: meMember?.displayName || me.name,
+    actorUserId: session.userId,
+  });
+  if (!result.ok) {
     return NextResponse.json({ error: result.error }, { status: 400 });
   }
-  const splitRows = result.map((r) => ({ groupMemberId: r.id, amount: r.amount }));
 
-  const expense = await prisma.expense.create({
-    data: {
-      groupId: group.id,
-      description,
-      amount,
-      currency,
-      category: category || null,
-      notes: notes || null,
-      splitType,
-      date: date ? new Date(date) : undefined,
-      payments: { create: paymentRows },
-      splits: { create: splitRows },
-      history: { create: { changedBy: meMember?.displayName || me.name, actorUserId: session.userId, summary: "Created" } },
-    },
-    include: { splits: true, payments: { include: { groupMember: true } } },
-  });
-
-  return NextResponse.json({ expense, groupId: group.id }, { status: 201 });
+  return NextResponse.json({ expense: result.expense, groupId: group.id }, { status: 201 });
 }

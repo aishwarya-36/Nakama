@@ -2,10 +2,6 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getSessionFromCookies } from "@/lib/auth";
 
-// Lists the current user's contacts (guest identities they've created before),
-// optionally filtered by a name substring, for autocomplete when adding people
-// to a group. Includes which groups each contact is already in, so the person
-// picking can tell two same-named contacts apart.
 export async function GET(req: NextRequest) {
   const session = getSessionFromCookies();
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

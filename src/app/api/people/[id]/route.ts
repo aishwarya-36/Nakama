@@ -11,10 +11,6 @@ const patchSchema = z.object({
   upiId: z.string().optional(),
 });
 
-// Edits a person's name, base currency, email, and UPI ID. Rejects a
-// case-insensitive duplicate of another contact's name (same rule as
-// creating one), and keeps every GroupMember.displayName snapshot for this
-// contact in sync, per the schema's documented invariant.
 export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
   const session = getSessionFromCookies();
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -55,10 +51,6 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   return NextResponse.json({ contact: updated });
 }
 
-// Removes a person from the address book. Only allowed once every currency
-// they're involved in nets to zero across every group they belong to.
-// GroupMember.contactId is ON DELETE SET NULL, so deleting the contact just
-// un-links future reuse — past group history (displayName snapshot) stays intact.
 export async function DELETE(_req: Request, { params }: { params: { id: string } }) {
   const session = getSessionFromCookies();
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

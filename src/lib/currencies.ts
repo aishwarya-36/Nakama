@@ -1,7 +1,4 @@
-// Full ISO 4217 currency codes for dropdowns (name + symbol where common).
-// Conversion rates (a much smaller, maintained set) live in currency.ts —
-// these two lists are intentionally separate: you can log an expense in any
-// currency, but "show in X" conversion only works for currencies we have a rate for.
+// Full dropdown list — conversion rates (smaller set) live in currency.ts.
 export interface CurrencyInfo {
   code: string;
   name: string;

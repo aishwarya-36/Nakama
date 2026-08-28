@@ -2,9 +2,9 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getSessionFromCookies } from "@/lib/auth";
 import { prisma } from "@/lib/db";
-import NewGroupForm from "@/components/NewGroupForm";
-import LogoutButton from "@/components/LogoutButton";
-import ThemeToggle from "@/components/ThemeToggle";
+import NewGroupForm from "@/components/groups/NewGroupForm";
+import LogoutButton from "@/components/layout/LogoutButton";
+import ThemeToggle from "@/components/layout/ThemeToggle";
 
 export default async function DashboardPage() {
   const session = getSessionFromCookies();

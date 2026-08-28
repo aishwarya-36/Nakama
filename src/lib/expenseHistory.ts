@@ -21,8 +21,7 @@ function truncate(s: string, max = 40) {
   return s.length > max ? `${s.slice(0, max)}…` : s;
 }
 
-/** Per-member before/after amounts for a payments or splits row set, e.g.
- *  "Alice 10.00 → 15.00, Bob added (5.00), Carol removed (was 8.00)". */
+// e.g. "Alice 10.00 → 15.00, Bob added (5.00), Carol removed (was 8.00)"
 function describeRowsChange(
   label: string,
   before: { groupMemberId: string; amount: number }[],
@@ -48,7 +47,6 @@ function describeRowsChange(
   return `${label} changed: ${parts.join(", ")}`;
 }
 
-/** Field-level diff between two expense snapshots, as human-readable summary lines. */
 export function diffExpense(
   before: ExpenseSnapshot,
   after: ExpenseSnapshot,

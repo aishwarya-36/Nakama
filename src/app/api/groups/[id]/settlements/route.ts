@@ -11,10 +11,6 @@ const schema = z.object({
   note: z.string().optional(),
 });
 
-// Records a payment from one group member to another — either settling down
-// an existing debt (partially or in full) or an advance with no debt behind
-// it yet. computeGroupBalances() already folds Settlement rows into balances,
-// so nothing else needs to change once this is written.
 export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
   const session = getSessionFromCookies();
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

@@ -3,8 +3,6 @@ import { prisma } from "@/lib/db";
 import { getSessionFromCookies } from "@/lib/auth";
 import { computeMemberOweOwed } from "@/lib/balances";
 
-// The logged-in user's own owed/owe totals within this one group, converted
-// to their base currency — feeds the "You owe" / "You are owed" summary cards.
 export async function GET(_req: Request, { params }: { params: { id: string } }) {
   const session = getSessionFromCookies();
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

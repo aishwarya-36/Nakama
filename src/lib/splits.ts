@@ -4,11 +4,6 @@ function roundCents(n: number) {
   return Math.round(n * 100) / 100;
 }
 
-/**
- * Turns a split request into per-participant amounts, validating against the
- * given set of valid participant ids. Shared by the group-expense and
- * direct (no-group) expense routes so the split math only lives once.
- */
 export function computeSplitRows(
   splitType: SplitType,
   amount: number,
@@ -71,7 +66,6 @@ export function computeSplitRows(
   return rows.map((s) => ({ id: s.id, amount: roundCents((s.value / 100) * amount) }));
 }
 
-/** Validates that a set of payer contributions add up exactly to the expense total. */
 export function validatePayers(
   payers: { id: string; value: number }[],
   amount: number,

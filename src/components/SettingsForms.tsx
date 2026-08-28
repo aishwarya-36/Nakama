@@ -2,6 +2,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { ALL_CURRENCIES } from "@/lib/currencies";
+import { apiPost } from "@/lib/api";
 
 function Section({ title, description, children }: { title: string; description?: string; children: React.ReactNode }) {
   return (
@@ -43,15 +44,10 @@ function BaseCurrencySection({ initial }: { initial: string }) {
     e.preventDefault();
     setLoading(true);
     setStatus(null);
-    const res = await fetch("/api/user/currency", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ baseCurrency: currency }),
-    });
+    const result = await apiPost("/api/user/currency", { baseCurrency: currency });
     setLoading(false);
-    if (!res.ok) {
-      const data = await res.json().catch(() => ({}));
-      setStatus({ text: data.error || "Couldn't update", tone: "error" });
+    if (!result.ok) {
+      setStatus({ text: result.error || "Couldn't update", tone: "error" });
       return;
     }
     setStatus({ text: "Base currency updated.", tone: "success" });
@@ -106,15 +102,10 @@ function ChangeEmailSection({ initial }: { initial: string }) {
     e.preventDefault();
     setLoading(true);
     setStatus(null);
-    const res = await fetch("/api/user/email", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ newEmail, password }),
-    });
+    const result = await apiPost("/api/user/email", { newEmail, password });
     setLoading(false);
-    if (!res.ok) {
-      const data = await res.json().catch(() => ({}));
-      setStatus({ text: data.error || "Couldn't update", tone: "error" });
+    if (!result.ok) {
+      setStatus({ text: result.error || "Couldn't update", tone: "error" });
       return;
     }
     setPassword("");
@@ -168,15 +159,10 @@ function ChangePasswordSection() {
     e.preventDefault();
     setLoading(true);
     setStatus(null);
-    const res = await fetch("/api/user/password", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ currentPassword, newPassword }),
-    });
+    const result = await apiPost("/api/user/password", { currentPassword, newPassword });
     setLoading(false);
-    if (!res.ok) {
-      const data = await res.json().catch(() => ({}));
-      setStatus({ text: data.error || "Couldn't update", tone: "error" });
+    if (!result.ok) {
+      setStatus({ text: result.error || "Couldn't update", tone: "error" });
       return;
     }
     setCurrentPassword("");

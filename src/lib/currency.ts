@@ -1,9 +1,4 @@
-// Placeholder static exchange rates, expressed as "1 USD = X of currency".
-// Swap `getRates()` for a live FX API (e.g. exchangerate.host, openexchangerates.org)
-// when you're ready — everything else (convert, the balances "show in" toggle) stays
-// the same. This covers the currencies people are most likely to actually log
-// expenses in; ALL_CURRENCIES in currencies.ts (for dropdowns) is a much longer list —
-// a currency can be picked for an expense even if it isn't convertible yet.
+// Placeholder rates — swap getRates() for a live FX API later.
 const STATIC_RATES_TO_USD: Record<string, number> = {
   USD: 1,
   EUR: 0.92,
@@ -54,7 +49,6 @@ const STATIC_RATES_TO_USD: Record<string, number> = {
 export const SUPPORTED_CURRENCIES = Object.keys(STATIC_RATES_TO_USD);
 
 export async function getRates(): Promise<Record<string, number>> {
-  // Swap this out for a live fetch + cache (e.g. revalidate every few hours) later.
   return STATIC_RATES_TO_USD;
 }
 
@@ -62,11 +56,7 @@ export function isConvertible(rates: Record<string, number>, code: string) {
   return !!rates[code];
 }
 
-/**
- * Converts an amount between currencies. If either side has no known rate,
- * returns `null` instead of throwing — callers decide how to surface that
- * (e.g. skip it from a converted total, or show the original amount instead).
- */
+// Returns null (not a throw) if either side has no known rate.
 export async function convert(
   amount: number,
   from: string,
