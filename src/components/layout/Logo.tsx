@@ -45,24 +45,34 @@ export default function Logo({ compact = false, className = "" }: { compact?: bo
   }
 
   return (
-    <svg viewBox="0 0 950 220" className={`h-9 w-auto ${className}`} role="img" aria-label="Nakama">
-      <g transform="translate(0,10) scale(0.325)">
+    <svg viewBox="0 0 932 340" className={`h-9 w-auto ${className}`} role="img" aria-label="Nakama">
+      <g transform="translate(40,55) scale(0.4398)">
         <Bag fill="#6366f1" />
       </g>
-      <text
-        x="185"
-        y="150"
-        fontFamily="Arial, Helvetica, sans-serif"
-        fontWeight="800"
-        fontSize="112"
-        letterSpacing="2"
-        fill="#6366f1"
-      >
-        NAKAMA
-      </text>
+
+      {/* Dark theme: white sword */}
+      <g transform="translate(229.6,67.5) rotate(135.00) scale(0.4475)" className="hidden dark:block">
+        <rect x="-2" y="-9" width="14" height="18" rx="4" fill="#ffffff" />
+        <rect x="10" y="-8" width="54" height="16" rx="3" fill="none" stroke="#ffffff" strokeWidth="2" />
+        <path
+          d="M14,-8 L24,8 M24,-8 L34,8 M34,-8 L44,8 M44,-8 L54,8 M54,-8 L60,4"
+          stroke="#ffffff"
+          strokeWidth="1.6"
+          fill="none"
+        />
+        <rect x="8.0" y="-4" width="8" height="8" fill="#ffffff" transform="rotate(45 12.0 0)" />
+        <rect x="20.5" y="-4" width="8" height="8" fill="#ffffff" transform="rotate(45 24.5 0)" />
+        <rect x="33.0" y="-4" width="8" height="8" fill="#ffffff" transform="rotate(45 37.0 0)" />
+        <rect x="45.5" y="-4" width="8" height="8" fill="#ffffff" transform="rotate(45 49.5 0)" />
+        <rect x="58.0" y="-4" width="8" height="8" fill="#ffffff" transform="rotate(45 62.0 0)" />
+        <ellipse cx="72" cy="0" rx="7" ry="19" fill="#ffffff" />
+        <circle cx="72" cy="0" r="3" fill="none" stroke="#333" strokeWidth="1.2" />
+        <path d="M79,-6 L610,-3 L648,0 L610,3 L79,6 Z" fill="#ffffff" />
+        <path d="M85,0 L605,0" stroke="#9ca3f7" strokeWidth="1.3" opacity="0.6" />
+      </g>
 
       {/* Light theme: black sword */}
-      <g transform="translate(820,104) scale(-1,1)" className="dark:hidden">
+      <g transform="translate(229.6,67.5) rotate(135.00) scale(0.4475)" className="dark:hidden">
         <rect x="-2" y="-9" width="14" height="18" rx="4" fill="#000000" />
         <rect x="10" y="-8" width="54" height="16" rx="3" fill="none" stroke="#000000" strokeWidth="2" />
         <path
@@ -82,25 +92,31 @@ export default function Logo({ compact = false, className = "" }: { compact?: bo
         <path d="M85,0 L605,0" stroke="#4b4fd6" strokeWidth="1.3" opacity="0.6" />
       </g>
 
-      {/* Dark theme: white sword */}
-      <g transform="translate(820,104) scale(-1,1)" className="hidden dark:block">
-        <rect x="-2" y="-9" width="14" height="18" rx="4" fill="#ffffff" />
-        <rect x="10" y="-8" width="54" height="16" rx="3" fill="none" stroke="#ffffff" strokeWidth="2" />
+      <g transform="translate(280,250)" fill="#6366f1">
         <path
-          d="M14,-8 L24,8 M24,-8 L34,8 M34,-8 L44,8 M44,-8 L54,8 M54,-8 L60,4"
-          stroke="#ffffff"
-          strokeWidth="1.6"
-          fill="none"
+          transform="translate(0.00,0) scale(0.130000,-0.130000)"
+          d="M1104 -132 1108 -142Q1052 -169 995 -169Q864 -169 728 -24L254 479V70Q254 45 272.0 27.5Q290 10 315 10H334V0H31V10H49Q75 10 93.0 27.5Q111 45 111 71V632Q62 688 37.0 710.5Q12 733 -7.5 748.0Q-27 763 -45 773Q-87 797 -112.5 801.0Q-138 805 -160.5 805.0Q-183 805 -209 796L-213 806Q-158 838 -100 838Q26 838 167 688L614 213V629Q613 655 595.0 672.5Q577 690 552 690H534V700H837V690H818Q793 690 775.0 672.5Q757 655 756 630V61L772 45Q778 39 790.5 24.5Q803 10 813.0 -0.5Q823 -11 838.5 -27.0Q854 -43 867.5 -55.0Q881 -67 899.5 -81.0Q918 -95 934.5 -104.5Q951 -114 972.0 -122.5Q993 -131 1012.5 -134.5Q1032 -138 1055.5 -138.0Q1079 -138 1104 -132Z"
         />
-        <rect x="8.0" y="-4" width="8" height="8" fill="#ffffff" transform="rotate(45 12.0 0)" />
-        <rect x="20.5" y="-4" width="8" height="8" fill="#ffffff" transform="rotate(45 24.5 0)" />
-        <rect x="33.0" y="-4" width="8" height="8" fill="#ffffff" transform="rotate(45 37.0 0)" />
-        <rect x="45.5" y="-4" width="8" height="8" fill="#ffffff" transform="rotate(45 49.5 0)" />
-        <rect x="58.0" y="-4" width="8" height="8" fill="#ffffff" transform="rotate(45 62.0 0)" />
-        <ellipse cx="72" cy="0" rx="7" ry="19" fill="#ffffff" />
-        <circle cx="72" cy="0" r="3" fill="none" stroke="#333" strokeWidth="1.2" />
-        <path d="M79,-6 L610,-3 L648,0 L610,3 L79,6 Z" fill="#ffffff" />
-        <path d="M85,0 L605,0" stroke="#9ca3f7" strokeWidth="1.3" opacity="0.6" />
+        <path
+          transform="translate(116.45,0) scale(0.130000,-0.130000)"
+          d="M966 -183Q857 -238 745 -201Q626 -163 540 -39Q494 27 461 114L429 199H193L140 73Q135 60 135.0 52.0Q135 44 138.5 34.5Q142 25 153.5 17.5Q165 10 179 10H187V0H-27V10H-18Q5 10 27.5 23.5Q50 37 65 64L288 573Q249 661 205 694Q168 722 134.5 722.0Q101 722 72 712L70 722Q142 759 208 759Q290 759 355 695Q419 632 468 513L613 155Q695 -48 781 -124Q816 -155 853.0 -167.0Q890 -179 915.5 -179.0Q941 -179 965 -173ZM210 242H414L344 427Q339 441 330.0 465.5Q321 490 318 500Z"
+        />
+        <path
+          transform="translate(212.10,0) scale(0.130000,-0.130000)"
+          d="M55 10Q81 10 99.5 28.5Q118 47 119 73V628Q118 664 86 682Q72 690 55 690H42V700H346L345 690H333Q307 690 288.0 672.0Q269 654 269 628V73Q269 47 288.0 28.5Q307 10 333 10H345L346 0H42V10ZM1048 -170Q975 -208 915.0 -208.0Q855 -208 807 -191Q688 -148 564 6L301 330L538 644Q546 654 546.0 662.0Q546 670 543 676Q535 691 515 691H505V700H734V691H730Q663 691 621 643L426 411L698 73Q789 -47 869.0 -101.0Q949 -155 1047 -160Z"
+        />
+        <path
+          transform="translate(315.03,0) scale(0.130000,-0.130000)"
+          d="M966 -183Q857 -238 745 -201Q626 -163 540 -39Q494 27 461 114L429 199H193L140 73Q135 60 135.0 52.0Q135 44 138.5 34.5Q142 25 153.5 17.5Q165 10 179 10H187V0H-27V10H-18Q5 10 27.5 23.5Q50 37 65 64L288 573Q249 661 205 694Q168 722 134.5 722.0Q101 722 72 712L70 722Q142 759 208 759Q290 759 355 695Q419 632 468 513L613 155Q695 -48 781 -124Q816 -155 853.0 -167.0Q890 -179 915.5 -179.0Q941 -179 965 -173ZM210 242H414L344 427Q339 441 330.0 465.5Q321 490 318 500Z"
+        />
+        <path
+          transform="translate(410.68,0) scale(0.130000,-0.130000)"
+          d="M-96 766Q-39 790 3.0 790.0Q45 790 77.0 782.0Q109 774 142.5 755.5Q176 737 205 710Q261 657 300 590L500 215L790 714H799L903 126Q927 -10 986 -90Q1045 -171 1148 -171Q1155 -171 1161 -171V-181Q1106 -196 1053 -196Q945 -196 856 -111Q770 -30 739 126L690 417L502 91Q464 28 463 -20H454L205 452L156 52Q153 29 176 15Q185 9 195 9H211V0H2V10H18Q44 10 64.5 25.5Q85 41 90 68L158 545Q113 625 55 687Q-10 757 -81 757Q-88 757 -94 756Z"
+        />
+        <path
+          transform="translate(540.52,0) scale(0.130000,-0.130000)"
+          d="M966 -183Q857 -238 745 -201Q626 -163 540 -39Q494 27 461 114L429 199H193L140 73Q135 60 135.0 52.0Q135 44 138.5 34.5Q142 25 153.5 17.5Q165 10 179 10H187V0H-27V10H-18Q5 10 27.5 23.5Q50 37 65 64L288 573Q249 661 205 694Q168 722 134.5 722.0Q101 722 72 712L70 722Q142 759 208 759Q290 759 355 695Q419 632 468 513L613 155Q695 -48 781 -124Q816 -155 853.0 -167.0Q890 -179 915.5 -179.0Q941 -179 965 -173ZM210 242H414L344 427Q339 441 330.0 465.5Q321 490 318 500Z"
+        />
       </g>
     </svg>
   );

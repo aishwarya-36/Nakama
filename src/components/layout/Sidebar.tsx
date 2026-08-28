@@ -29,20 +29,32 @@ function getInitials(name: string): string {
 
 export default function Sidebar({ userName }: { userName: string }) {
   const pathname = usePathname();
-  const [collapsed, setCollapsed] = useState(false);
+  // Manual preference (the toggle button), separate from the forced narrow-screen state below —
+  // a narrow window always wins so the page content never needs horizontal scrolling, but the
+  // user's own choice is restored once the window is wide enough again.
+  const [manualCollapsed, setManualCollapsed] = useState(false);
+  const [isNarrowScreen, setIsNarrowScreen] = useState(false);
+  const collapsed = isNarrowScreen || manualCollapsed;
   const initials = getInitials(userName);
 
   useEffect(() => {
     const stored = localStorage.getItem(STORAGE_KEY);
-    if (stored !== null) {
-      setCollapsed(stored === "1");
-    } else {
-      setCollapsed(window.matchMedia(SMALL_SCREEN_QUERY).matches);
+    if (stored !== null) setManualCollapsed(stored === "1");
+
+    const mql = window.matchMedia(SMALL_SCREEN_QUERY);
+    setIsNarrowScreen(mql.matches);
+    function onChange(e: MediaQueryListEvent) {
+      setIsNarrowScreen(e.matches);
     }
+    mql.addEventListener("change", onChange);
+    return () => mql.removeEventListener("change", onChange);
   }, []);
 
   function toggle() {
-    setCollapsed((prev) => {
+    // While narrow-forced, the button is visually inert — don't let a click silently
+    // change the stored preference underneath the forced state.
+    if (isNarrowScreen) return;
+    setManualCollapsed((prev) => {
       const next = !prev;
       localStorage.setItem(STORAGE_KEY, next ? "1" : "0");
       return next;
@@ -52,16 +64,17 @@ export default function Sidebar({ userName }: { userName: string }) {
   return (
     <aside
       className={`sticky top-0 flex h-screen flex-shrink-0 flex-col border-r border-border bg-surface transition-[width] duration-150 ${
-        collapsed ? "w-16" : "w-56"
+        collapsed ? "w-16" : "w-48"
       }`}
     >
       <div className="flex items-center gap-2 border-b border-border px-4 py-4">
         <Logo compact={collapsed} className="flex-shrink-0" />
         <button
           onClick={toggle}
-          title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+          disabled={isNarrowScreen}
+          title={isNarrowScreen ? "Sidebar is collapsed to fit this window size" : collapsed ? "Expand sidebar" : "Collapse sidebar"}
           aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-          className="ml-auto flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-md text-text-faint hover:bg-surface-secondary hover:text-text"
+          className="ml-auto flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-md text-text-faint hover:bg-surface-secondary hover:text-text disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent"
         >
           <svg
             width="14"

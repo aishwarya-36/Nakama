@@ -43,7 +43,7 @@ export default function ExchangeRateStatus() {
         disabled={refreshing}
         aria-label="Refresh exchange rates"
         title="Refresh exchange rates"
-        className="rounded-md p-1 text-text-faint hover:bg-surface-secondary hover:text-text disabled:opacity-60"
+        className="rounded-md p-1 text-primary hover:bg-primary/10 disabled:opacity-60"
       >
         <svg
           width="14"
