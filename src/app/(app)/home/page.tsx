@@ -3,7 +3,8 @@ import { redirect } from "next/navigation";
 import { getSessionFromCookies } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import OverviewCards from "@/components/OverviewCards";
-import AddDirectExpenseButton from "@/components/AddDirectExpenseButton";
+import AddExpenseButton from "@/components/AddExpenseButton";
+import RecentExpensesTable from "@/components/RecentExpensesTable";
 
 export default async function HomePage() {
   const session = getSessionFromCookies();
@@ -13,17 +14,17 @@ export default async function HomePage() {
   if (!user) redirect("/login");
 
   const groups = await prisma.group.findMany({
-    where: { members: { some: { userId: user.id } } },
+    where: { isPersonal: false, members: { some: { userId: user.id } } },
     include: { members: true, _count: { select: { expenses: true } } },
     orderBy: { createdAt: "desc" },
     take: 4,
   });
 
   return (
-    <div className="mx-auto max-w-3xl px-4 py-8">
+    <div className="mx-auto max-w-5xl px-4 py-8">
       <div className="mb-1 flex items-start justify-between gap-3">
         <h1 className="text-2xl font-semibold text-text">Welcome back, {user.name}</h1>
-        <AddDirectExpenseButton userName={user.name} />
+        <AddExpenseButton userName={user.name} baseCurrency={user.baseCurrency} />
       </div>
       <p className="mb-6 text-sm text-text-muted">
         Here's where things stand across all your groups.
@@ -60,6 +61,11 @@ export default async function HomePage() {
             .
           </p>
         )}
+      </div>
+
+      <div className="mt-8 rounded-lg border border-border bg-surface p-5 shadow-sm">
+        <h2 className="mb-4 text-lg font-medium text-text">Recent group spending</h2>
+        <RecentExpensesTable fixedScope="group" showOweFilter />
       </div>
     </div>
   );
