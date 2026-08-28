@@ -149,6 +149,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
         data: {
           expenseId: params.expenseId,
           changedBy: actor?.displayName || "Someone",
+          actorUserId: session.userId,
           summary: changes.join("; "),
         },
       });

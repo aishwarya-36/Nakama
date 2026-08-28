@@ -130,7 +130,7 @@ export async function POST(req: NextRequest) {
       date: date ? new Date(date) : undefined,
       payments: { create: paymentRows },
       splits: { create: splitRows },
-      history: { create: { changedBy: meMember?.displayName || me.name, summary: "Created" } },
+      history: { create: { changedBy: meMember?.displayName || me.name, actorUserId: session.userId, summary: "Created" } },
     },
     include: { splits: true, payments: { include: { groupMember: true } } },
   });

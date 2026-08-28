@@ -12,6 +12,7 @@ const NAV_ITEMS = [
   { href: "/people", label: "People", icon: PersonIcon },
   { href: "/expenses", label: "Expenses", icon: ExpensesIcon },
 ];
+const HISTORY_ITEM = { href: "/history", label: "History", icon: HistoryIcon };
 const HELP_ITEM = { href: "/help", label: "Help", icon: HelpIcon };
 const SETTINGS_ITEM = { href: "/settings", label: "Settings", icon: SettingsIcon };
 
@@ -78,6 +79,7 @@ export default function Sidebar({ userName }: { userName: string }) {
       <nav className="flex flex-1 flex-col p-3">
         <div className="space-y-1">{NAV_ITEMS.map((item) => renderNavItem(item, pathname, collapsed))}</div>
         <div className="mt-auto space-y-1 pt-1">
+          {renderNavItem(HISTORY_ITEM, pathname, collapsed)}
           {renderNavItem(HELP_ITEM, pathname, collapsed)}
           {renderNavItem(SETTINGS_ITEM, pathname, collapsed)}
         </div>
@@ -181,6 +183,15 @@ function ExpensesIcon() {
     <svg {...iconProps()}>
       <rect x="3" y="4" width="18" height="16" rx="2" />
       <path d="M7 15l3-3 2.5 2.5L17 10" />
+    </svg>
+  );
+}
+
+function HistoryIcon() {
+  return (
+    <svg {...iconProps()}>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M12 7v5l3.5 2" />
     </svg>
   );
 }

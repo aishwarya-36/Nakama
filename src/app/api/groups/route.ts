@@ -73,6 +73,7 @@ export async function POST(req: NextRequest) {
   const group = await prisma.group.create({
     data: {
       name,
+      createdById: me.id,
       members: {
         create: [
           { displayName: me.name, userId: me.id },

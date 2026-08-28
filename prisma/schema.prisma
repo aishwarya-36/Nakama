@@ -43,6 +43,7 @@ model Group {
   personalKey    String?       @unique // canonical signature (owner + sorted contact ids) used to find-or-create the implicit group for a given set of people
   defaultCurrency String       @default("USD") // pre-filled currency when adding an expense in this group
   simplifyDebts  Boolean       @default(false) // when true, balances show minimal settle-up transactions instead of each pairwise debt
+  createdById    String?       // userId of whoever created it, for the History tab's activity feed — no FK, just a stamp
   createdAt      DateTime      @default(now())
   members        GroupMember[]
   expenses       Expense[]
@@ -99,12 +100,13 @@ model Expense {
 // An audit trail entry for an expense — one row per edit (plus one for creation),
 // so "who changed what and when" is visible from the expense's History tab.
 model ExpenseHistory {
-  id        String   @id @default(uuid())
-  expenseId String
-  expense   Expense  @relation(fields: [expenseId], references: [id], onDelete: Cascade)
-  changedBy String   // display name snapshot of whoever made the change
-  summary   String   // human-readable description, e.g. "Amount changed from 20.00 USD to 25.00 USD"
-  createdAt DateTime @default(now())
+  id          String   @id @default(uuid())
+  expenseId   String
+  expense     Expense  @relation(fields: [expenseId], references: [id], onDelete: Cascade)
+  changedBy   String   // display name snapshot of whoever made the change
+  actorUserId String?  // userId of whoever made the change, for the History tab's activity feed — no FK, just a stamp
+  summary     String   // human-readable description, e.g. "Amount changed from 20.00 USD to 25.00 USD"
+  createdAt   DateTime @default(now())
 }
 
 // One row per person who contributed money toward an expense — supports splitting
@@ -132,15 +134,16 @@ model ExpenseSplit {
 
 // A direct payment recorded to settle up between two members (not tied to a specific expense).
 model Settlement {
-  id           String      @id @default(uuid())
-  groupId      String
-  group        Group       @relation(fields: [groupId], references: [id], onDelete: Cascade)
-  fromMemberId String
-  fromMember   GroupMember @relation("SettlementFrom", fields: [fromMemberId], references: [id])
-  toMemberId   String
-  toMember     GroupMember @relation("SettlementTo", fields: [toMemberId], references: [id])
-  amount       Decimal     @db.Decimal(12, 2)
-  currency     String
-  date         DateTime    @default(now())
-  note         String?
+  id            String      @id @default(uuid())
+  groupId       String
+  group         Group       @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  fromMemberId  String
+  fromMember    GroupMember @relation("SettlementFrom", fields: [fromMemberId], references: [id])
+  toMemberId    String
+  toMember      GroupMember @relation("SettlementTo", fields: [toMemberId], references: [id])
+  amount        Decimal     @db.Decimal(12, 2)
+  currency      String
+  date          DateTime    @default(now())
+  note          String?
+  recordedById  String?     // userId of whoever recorded it, for the History tab's activity feed — no FK, just a stamp
 }

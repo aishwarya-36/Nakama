@@ -41,7 +41,15 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   }
 
   const settlement = await prisma.settlement.create({
-    data: { groupId: params.id, fromMemberId, toMemberId, amount, currency, note: note || null },
+    data: {
+      groupId: params.id,
+      fromMemberId,
+      toMemberId,
+      amount,
+      currency,
+      note: note || null,
+      recordedById: session.userId,
+    },
   });
   return NextResponse.json({ settlement });
 }
