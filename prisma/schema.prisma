@@ -28,6 +28,7 @@ model Contact {
   baseCurrency String        @default("USD")
   email        String?       // optional contact info, not used for login/auth
   upiId        String?
+  shareToken   String?       @unique // lazily generated — powers the no-login /share/[token] page
   createdAt    DateTime      @default(now())
   groupMembers GroupMember[]
 
@@ -158,4 +159,15 @@ model Settlement {
   @@index([fromMemberId])
   @@index([toMemberId])
   @@index([recordedById])
+}
+
+// A fetched FX snapshot (rates already merged with the static fallback
+// table for currencies frankfurter.dev doesn't cover). One row per
+// fetch; the latest by fetchedAt is authoritative.
+model ExchangeRateSnapshot {
+  id        String   @id @default(uuid())
+  rates     Json
+  fetchedAt DateTime @default(now())
+
+  @@index([fetchedAt])
 }

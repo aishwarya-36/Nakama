@@ -27,8 +27,16 @@ const FAQS: { q: string; a: string }[] = [
     a: "The Home and Expenses tabs both show a recent spending table. Filter by date range (past week/month/3 months/6 months/year), search by description, and — on the Expenses tab — filter by whether you owe or are owed. Use \"Download as Excel\" to export the current filtered view.",
   },
   {
+    q: "Do payments show up as spending too?",
+    a: "Only the ones you make. Paying someone back appears in your recent spending and counts toward your monthly totals and chart, same as an expense — it's real money leaving your pocket. A payment you receive is income, not spending, so it never shows up in either.",
+  },
+  {
     q: "What do \"Net balance\", \"Owed to you\", and \"You owe\" mean?",
     a: "These are converted into your base currency (set on Settings) so everything nets into one number. If you have balances in other currencies, a small breakdown appears underneath each figure — click \"+N more\" if there are more than two.",
+  },
+  {
+    q: "Where do exchange rates come from, and how current are they?",
+    a: "Nakama pulls live rates from frankfurter.dev automatically once a month (the first time they're needed in a new calendar month). Home shows \"Exchange rates as of [date]\" above Recent groups — click the refresh icon next to it to force an update any time. A currency frankfurter.dev doesn't cover falls back to a fixed rate instead.",
   },
   {
     q: "Can I edit an expense after adding it, and will anyone know what changed?",
@@ -41,6 +49,14 @@ const FAQS: { q: string; a: string }[] = [
   {
     q: "What is \"Simplify debts\" and how do I turn it on?",
     a: "By default a group shows every pairwise debt as-is (if A owes B and B owes C, both show separately). Turning on \"Simplify debts\" nets those down to the fewest transactions overall (so A just owes C directly) instead of every individual pair. Enable it from that group's Settings button, next to the group name — it's a per-group toggle, off by default.",
+  },
+  {
+    q: "Can I settle up or add a payment directly from someone's People page?",
+    a: "Yes — open anyone from the People tab and you get the same Settle up / + Add payment actions a group has, but aggregated across every group you share with them plus any direct expenses. Settle up lists each outstanding debt tagged by which group it's in; + Add payment records an arbitrary payment and quietly creates the direct relationship for you if you're not already in a group together.",
+  },
+  {
+    q: "What's the link icon on a person's page for?",
+    a: "It generates a private, unguessable link you can send that person so they can check the balance and history between you two without creating an account or logging in. It only shows what involves them — nothing about your other contacts or groups — and it's read-only: no editing, settling, or adding expenses from it.",
   },
 ];
 

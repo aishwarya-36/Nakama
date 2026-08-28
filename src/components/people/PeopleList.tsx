@@ -5,7 +5,6 @@ import Link from "next/link";
 import { useToast } from "@/components/ui/ToastProvider";
 import SearchToggle from "@/components/ui/SearchToggle";
 import AddPersonButton from "@/components/people/AddPersonButton";
-import EditPersonButton from "@/components/people/EditPersonButton";
 import { useInfiniteScrollSentinel } from "@/lib/useInfiniteScrollSentinel";
 import { apiDelete } from "@/lib/api";
 
@@ -104,24 +103,20 @@ export default function PeopleList({
 
       <div className="divide-y divide-border">
         {people.map((p) => {
-          const rounded = Math.round(p.total * 100) / 100;
+          // p.total/p.byCurrency are the contact's own balance (positive = owed to them, i.e.
+          // you owe them) — flip so red/green always reflects the logged-in user's position.
+          const rounded = Math.round(-p.total * 100) / 100;
           const tone = rounded > 0.004 ? "text-success-text" : rounded < -0.004 ? "text-error" : "text-text-faint";
-          const label = rounded > 0.004 ? "is owed" : rounded < -0.004 ? "owes" : "settled up";
+          const label = rounded > 0.004 ? "owes you" : rounded < -0.004 ? "you owe" : "settled up";
           return (
-            <div key={p.id} className="py-3">
+            <Link
+              key={p.id}
+              href={`/people/${p.id}`}
+              className="-mx-2 block rounded-md px-2 py-3 hover:bg-surface-secondary"
+            >
               <div className="flex items-center justify-between gap-3">
                 <div>
-                  <span className="inline-flex items-center gap-1.5">
-                    <Link href={`/people/${p.id}`} className="font-medium text-text hover:text-primary hover:underline">
-                      {p.name}
-                    </Link>
-                    <EditPersonButton
-                      person={{ id: p.id, name: p.name, baseCurrency: p.baseCurrency, email: p.email, upiId: p.upiId }}
-                      onSaved={(updated) =>
-                        setPeople((prev) => prev.map((x) => (x.id === p.id ? { ...x, ...updated } : x)))
-                      }
-                    />
-                  </span>
+                  <div className="font-medium text-text">{p.name}</div>
                   <div className="text-xs text-text-faint">
                     {p.groupNames.length > 0 ? `In: ${p.groupNames.join(", ")}` : "Not in any group yet"}
                   </div>
@@ -136,17 +131,24 @@ export default function PeopleList({
                       <ul className="mt-0.5 space-y-0.5 text-xs text-text-faint">
                         {Object.entries(p.byCurrency)
                           .filter(([, amt]) => Math.abs(amt) > 0.005)
-                          .map(([currency, amt]) => (
-                            <li key={currency}>
-                              {amt > 0 ? "owed" : "owes"} {Math.abs(amt).toFixed(2)} {currency}
-                            </li>
-                          ))}
+                          .map(([currency, amt]) => {
+                            const userAmt = -amt;
+                            return (
+                              <li key={currency}>
+                                {userAmt > 0 ? "owes you" : "you owe"} {Math.abs(userAmt).toFixed(2)} {currency}
+                              </li>
+                            );
+                          })}
                       </ul>
                     )}
                   </div>
                   <button
                     type="button"
-                    onClick={() => remove(p.id, p.name)}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      remove(p.id, p.name);
+                    }}
                     disabled={removingId === p.id}
                     title="Remove"
                     aria-label={`Remove ${p.name}`}
@@ -166,7 +168,7 @@ export default function PeopleList({
                   Couldn't convert amounts in {p.skippedCurrencies.join(", ")} — no exchange rate on file yet.
                 </p>
               )}
-            </div>
+            </Link>
           );
         })}
       </div>

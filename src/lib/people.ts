@@ -82,6 +82,44 @@ export async function getContactExpenses(contactId: string): Promise<ContactExpe
   }));
 }
 
+export interface ContactSettlementRow {
+  id: string;
+  date: Date;
+  amount: number;
+  currency: string;
+  note: string | null;
+  fromName: string;
+  toName: string;
+  groupName: string;
+}
+
+export async function getContactSettlements(contactId: string): Promise<ContactSettlementRow[]> {
+  const memberships = await prisma.groupMember.findMany({ where: { contactId }, select: { id: true } });
+  if (memberships.length === 0) return [];
+  const memberIds = memberships.map((m) => m.id);
+
+  const settlements = await prisma.settlement.findMany({
+    where: { OR: [{ fromMemberId: { in: memberIds } }, { toMemberId: { in: memberIds } }] },
+    include: {
+      fromMember: { select: { displayName: true } },
+      toMember: { select: { displayName: true } },
+      group: { select: { name: true, isPersonal: true } },
+    },
+    orderBy: { date: "desc" },
+  });
+
+  return settlements.map((s) => ({
+    id: s.id,
+    date: s.date,
+    amount: Number(s.amount),
+    currency: s.currency,
+    note: s.note,
+    fromName: s.fromMember.displayName,
+    toName: s.toMember.displayName,
+    groupName: s.group.isPersonal ? "Direct" : s.group.name,
+  }));
+}
+
 export const PEOPLE_PAGE_SIZE = 15;
 
 export interface PersonSummary {

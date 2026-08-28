@@ -89,6 +89,7 @@ export async function computeUserOverview(userId: string, baseCurrency: string) 
         payments: { where: { groupMemberId: m.id } },
       },
     });
+    const isSolo = m.group.isPersonal && m.group.personalKey === soloKey;
     for (const exp of expenses) {
       for (const payment of exp.payments) {
         const converted = await convert(Number(payment.amount), exp.currency, baseCurrency);
@@ -99,10 +100,24 @@ export async function computeUserOverview(userId: string, baseCurrency: string) 
         if (converted !== null) {
           totalYourShare += converted;
           if (exp.date >= monthStart) {
-            const isSolo = m.group.isPersonal && m.group.personalKey === soloKey;
             if (isSolo) thisMonthPersonalSpend += converted;
             else thisMonthGroupSpend += converted;
           }
+        }
+      }
+    }
+
+    // Payments you made count as your own spend (no split — you paid the full amount);
+    // payments you received are income, not spending, so they're excluded entirely here.
+    const settlementsPaid = await prisma.settlement.findMany({ where: { groupId: m.groupId, fromMemberId: m.id } });
+    for (const s of settlementsPaid) {
+      const converted = await convert(Number(s.amount), s.currency, baseCurrency);
+      if (converted !== null) {
+        totalPaidByYou += converted;
+        totalYourShare += converted;
+        if (s.date >= monthStart) {
+          if (isSolo) thisMonthPersonalSpend += converted;
+          else thisMonthGroupSpend += converted;
         }
       }
     }
@@ -166,6 +181,22 @@ export async function computeMonthlySpending(userId: string, baseCurrency: strin
     const categoryKey = s.expense.category && KNOWN_CATEGORY_KEYS.has(s.expense.category) ? s.expense.category : "other";
     bucket.total += converted;
     bucket.byCategory[categoryKey] += converted;
+  }
+
+  // Payments you made count as spending too (bucketed as "other" — a settlement has no
+  // category); payments you received are income and are excluded here entirely.
+  const settlementsPaid = await prisma.settlement.findMany({
+    where: { fromMemberId: { in: memberIds }, date: { gte: since } },
+    select: { date: true, amount: true, currency: true },
+  });
+  for (const s of settlementsPaid) {
+    const key = `${s.date.getFullYear()}-${String(s.date.getMonth() + 1).padStart(2, "0")}`;
+    const converted = await convert(Number(s.amount), s.currency, baseCurrency);
+    if (converted === null) continue;
+    const bucket = buckets.get(key);
+    if (!bucket) continue;
+    bucket.total += converted;
+    bucket.byCategory.other += converted;
   }
 
   return Array.from(buckets.entries()).map(([month, b]) => ({

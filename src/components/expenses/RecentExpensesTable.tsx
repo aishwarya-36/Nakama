@@ -3,10 +3,11 @@ import { useCallback, useEffect, useState } from "react";
 import SearchToggle from "@/components/ui/SearchToggle";
 import ExpenseEditModal from "@/components/expenses/ExpenseEditModal";
 import { useInfiniteScrollSentinel } from "@/lib/useInfiniteScrollSentinel";
-import { onExpensesChanged } from "@/lib/events";
+import { onExpensesChanged, onSettlementChanged } from "@/lib/events";
 
 interface Row {
   id: string;
+  type: "expense" | "payment";
   description: string;
   date: string;
   amount: number;
@@ -85,10 +86,18 @@ export default function RecentExpensesTable({
   }, [range, scope, owe, q, load]);
 
   useEffect(() => {
-    return onExpensesChanged(() => {
+    const offExpenses = onExpensesChanged(() => {
       setPage(1);
       load(range, scope, owe, q, 1, true);
     });
+    const offSettlement = onSettlementChanged(() => {
+      setPage(1);
+      load(range, scope, owe, q, 1, true);
+    });
+    return () => {
+      offExpenses();
+      offSettlement();
+    };
   }, [range, scope, owe, q, load]);
 
   function loadMore() {
@@ -172,8 +181,8 @@ export default function RecentExpensesTable({
             {rows.map((r) => (
               <tr
                 key={r.id}
-                onClick={() => setEditing({ groupId: r.groupId, expenseId: r.id })}
-                className="cursor-pointer hover:bg-surface-secondary"
+                onClick={r.type === "expense" ? () => setEditing({ groupId: r.groupId, expenseId: r.id }) : undefined}
+                className={r.type === "expense" ? "cursor-pointer hover:bg-surface-secondary" : ""}
               >
                 <td className="whitespace-nowrap py-2 pr-3 text-text-muted">
                   {new Date(r.date).toLocaleDateString()}

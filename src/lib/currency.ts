@@ -1,4 +1,7 @@
-// Placeholder rates — swap getRates() for a live FX API later.
+import { prisma } from "./db";
+
+// Fallback rates for currencies frankfurter.dev doesn't cover, and the
+// baseline getRates() merges live rates over.
 const STATIC_RATES_TO_USD: Record<string, number> = {
   USD: 1,
   EUR: 0.92,
@@ -48,8 +51,42 @@ const STATIC_RATES_TO_USD: Record<string, number> = {
 
 export const SUPPORTED_CURRENCIES = Object.keys(STATIC_RATES_TO_USD);
 
+async function fetchLiveRates(): Promise<Record<string, number>> {
+  const res = await fetch("https://api.frankfurter.dev/v1/latest?base=USD");
+  if (!res.ok) throw new Error("Failed to fetch exchange rates");
+  const data: { rates: Record<string, number> } = await res.json();
+  return { USD: 1, ...data.rates };
+}
+
+export async function getLatestSnapshot() {
+  return prisma.exchangeRateSnapshot.findFirst({ orderBy: { fetchedAt: "desc" } });
+}
+
+export async function refreshRates() {
+  const live = await fetchLiveRates();
+  const rates = { ...STATIC_RATES_TO_USD, ...live };
+  return prisma.exchangeRateSnapshot.create({ data: { rates } });
+}
+
+function isNewCalendarMonth(fetchedAt: Date): boolean {
+  const now = new Date();
+  return (
+    fetchedAt.getUTCFullYear() !== now.getUTCFullYear() || fetchedAt.getUTCMonth() !== now.getUTCMonth()
+  );
+}
+
 export async function getRates(): Promise<Record<string, number>> {
-  return STATIC_RATES_TO_USD;
+  const snapshot = await getLatestSnapshot();
+  if (!snapshot || isNewCalendarMonth(snapshot.fetchedAt)) {
+    try {
+      const fresh = await refreshRates();
+      return fresh.rates as Record<string, number>;
+    } catch {
+      // Network hiccup — fall back to whatever we have rather than breaking conversions.
+      return (snapshot?.rates as Record<string, number>) || STATIC_RATES_TO_USD;
+    }
+  }
+  return snapshot.rates as Record<string, number>;
 }
 
 export function isConvertible(rates: Record<string, number>, code: string) {

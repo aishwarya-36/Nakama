@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import Modal from "@/components/ui/Modal";
-import { onExpensesChanged } from "@/lib/events";
+import { onExpensesChanged, onSettlementChanged } from "@/lib/events";
 
 interface Overview {
   baseCurrency: string;
@@ -31,7 +31,12 @@ export default function OverviewCards({ variant = "balances" }: { variant?: "bal
         .then(setData);
     }
     load();
-    return onExpensesChanged(load);
+    const offExpenses = onExpensesChanged(load);
+    const offSettlement = onSettlementChanged(load);
+    return () => {
+      offExpenses();
+      offSettlement();
+    };
   }, []);
 
   if (!data) {

@@ -35,6 +35,7 @@ export function rangeToFrom(range: ExpenseRange | undefined, now = new Date()): 
 
 export interface UserExpenseRow {
   id: string;
+  type: "expense" | "payment";
   description: string;
   date: Date;
   amount: number;
@@ -95,6 +96,7 @@ function toRow(e: any, userId: string, memberIds: string[]): UserExpenseRow {
     .reduce((sum: number, p: any) => sum + Number(p.amount), 0);
   return {
     id: e.id,
+    type: "expense",
     description: e.description,
     date: e.date,
     amount: Number(e.amount),
@@ -116,6 +118,75 @@ function applyOweFilter(rows: UserExpenseRow[], owe?: ExpenseOweFilter): UserExp
   if (owe === "owe") return rows.filter((r) => r.yourNet < -0.005);
   if (owe === "owed") return rows.filter((r) => r.yourNet > 0.005);
   return rows;
+}
+
+// Payments are a completed settling action, not an outstanding split, so they never carry a
+// Only ever built for settlements you PAID (fromMemberId is yours) — a payment you receive is
+// income, not spending, and is excluded upstream in getSettlementRows. A payment you make is
+// entirely your own spend (no split), so it fully resolves — yourNet is always 0.
+function settlementToRow(s: any, userId: string, memberIds: string[]): UserExpenseRow {
+  const isMine = s.group.isPersonal && s.group.personalKey === `solo:${userId}`;
+  return {
+    id: `settlement:${s.id}`,
+    type: "payment",
+    description: `Payment: ${s.fromMember.displayName} → ${s.toMember.displayName}`,
+    date: s.date,
+    amount: Number(s.amount),
+    currency: s.currency,
+    category: null,
+    notes: s.note,
+    groupId: s.groupId,
+    groupName: isMine ? "Personal" : s.group.isPersonal ? directGroupLabel(s.group.members, memberIds) : s.group.name,
+    isPersonal: s.group.isPersonal,
+    isMine,
+    paidByName: s.fromMember.displayName,
+    yourShare: Number(s.amount),
+    yourPaid: Number(s.amount),
+    yourNet: 0,
+  };
+}
+
+async function getSettlementRows(
+  userId: string,
+  memberIds: string[],
+  from?: Date,
+  to?: Date,
+  q?: string,
+  scope?: ExpenseScope
+): Promise<UserExpenseRow[]> {
+  const soloKey = `solo:${userId}`;
+  const settlements = await prisma.settlement.findMany({
+    where: {
+      // Only payments you made — receiving money back isn't your spending, and shouldn't
+      // appear in a "recent spending" list at all.
+      fromMemberId: { in: memberIds },
+      ...(from || to ? { date: { ...(from ? { gte: from } : {}), ...(to ? { lte: to } : {}) } } : {}),
+      ...(scope === "mine"
+        ? { group: { personalKey: soloKey } }
+        : scope === "group"
+          ? { NOT: { group: { personalKey: soloKey } } }
+          : {}),
+    },
+    include: {
+      fromMember: { select: { displayName: true } },
+      toMember: { select: { displayName: true } },
+      group: {
+        select: {
+          name: true,
+          isPersonal: true,
+          personalKey: true,
+          members: { select: { id: true, displayName: true } },
+        },
+      },
+    },
+  });
+
+  const rows = settlements.map((s) => settlementToRow(s, userId, memberIds));
+  if (!q) return rows;
+  const needle = q.toLowerCase();
+  return rows.filter(
+    (r) => r.description.toLowerCase().includes(needle) || (r.notes || "").toLowerCase().includes(needle)
+  );
 }
 
 export async function getUserExpensesPage(
@@ -155,10 +226,11 @@ export async function getUserExpensesPage(
     orderBy: { date: "desc" },
   });
 
-  const rows = applyOweFilter(
-    expenses.map((e) => toRow(e, userId, memberIds)),
-    opts.owe
+  const settlementRows = await getSettlementRows(userId, memberIds, opts.from, opts.to, opts.q, opts.scope);
+  const combined = [...expenses.map((e) => toRow(e, userId, memberIds)), ...settlementRows].sort(
+    (a, b) => b.date.getTime() - a.date.getTime()
   );
+  const rows = applyOweFilter(combined, opts.owe);
   const total = rows.length;
   const paged = rows.slice((page - 1) * pageSize, (page - 1) * pageSize + pageSize);
 
@@ -192,8 +264,9 @@ export async function getAllUserExpenses(
     },
     orderBy: { date: "desc" },
   });
-  return applyOweFilter(
-    expenses.map((e) => toRow(e, userId, memberIds)),
-    owe
+  const settlementRows = await getSettlementRows(userId, memberIds, from, to, undefined, scope);
+  const combined = [...expenses.map((e) => toRow(e, userId, memberIds)), ...settlementRows].sort(
+    (a, b) => b.date.getTime() - a.date.getTime()
   );
+  return applyOweFilter(combined, owe);
 }

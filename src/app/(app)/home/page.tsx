@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { getSessionFromCookies } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import OverviewCards from "@/components/home/OverviewCards";
+import ExchangeRateStatus from "@/components/home/ExchangeRateStatus";
 import AddExpenseButton from "@/components/expenses/AddExpenseButton";
 import RecentExpensesTable from "@/components/expenses/RecentExpensesTable";
 
@@ -32,7 +33,11 @@ export default async function HomePage() {
 
       <OverviewCards />
 
-      <div className="mt-8 flex items-center justify-between">
+      <div className="mt-8">
+        <ExchangeRateStatus />
+      </div>
+
+      <div className="flex items-center justify-between">
         <h2 className="text-lg font-medium text-text">Recent groups</h2>
         <Link href="/groups" className="text-sm font-medium text-primary hover:underline">
           View all
