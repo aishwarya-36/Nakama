@@ -10,15 +10,23 @@ const NAV_ITEMS = [
   { href: "/groups", label: "Groups", icon: GroupsIcon },
   { href: "/people", label: "People", icon: PersonIcon },
   { href: "/expenses", label: "Expenses", icon: ExpensesIcon },
-  { href: "/settings", label: "Settings", icon: SettingsIcon },
 ];
+const SETTINGS_ITEM = { href: "/settings", label: "Settings", icon: SettingsIcon };
 
 const STORAGE_KEY = "sidebar:collapsed";
 const SMALL_SCREEN_QUERY = "(max-width: 767px)";
 
+function getInitials(name: string): string {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return "";
+  if (parts.length === 1) return parts[0].charAt(0).toUpperCase();
+  return (parts[0].charAt(0) + parts[parts.length - 1].charAt(0)).toUpperCase();
+}
+
 export default function Sidebar({ userName }: { userName: string }) {
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
+  const initials = getInitials(userName);
 
   useEffect(() => {
     const stored = localStorage.getItem(STORAGE_KEY);
@@ -68,40 +76,32 @@ export default function Sidebar({ userName }: { userName: string }) {
         </button>
       </div>
 
-      <nav className="flex-1 space-y-1 p-3">
-        {NAV_ITEMS.map((item) => {
-          const active = pathname === item.href || pathname.startsWith(item.href + "/");
-          const Icon = item.icon;
-          return (
-            <Link
-              key={item.href}
-              href={item.href}
-              title={collapsed ? item.label : undefined}
-              className={`flex items-center gap-2.5 rounded-md px-3 py-2 text-sm font-medium transition-colors ${
-                collapsed ? "justify-center" : ""
-              } ${
-                active
-                  ? "bg-primary-tint text-primary"
-                  : "text-text-muted hover:bg-surface-secondary hover:text-text"
-              }`}
-            >
-              <Icon />
-              {!collapsed && item.label}
-            </Link>
-          );
-        })}
+      <nav className="flex flex-1 flex-col p-3">
+        <div className="space-y-1">{NAV_ITEMS.map((item) => renderNavItem(item, pathname, collapsed))}</div>
+        <div className="mt-auto space-y-1 pt-1">{renderNavItem(SETTINGS_ITEM, pathname, collapsed)}</div>
       </nav>
 
       <div className="border-t border-border p-3">
         {collapsed ? (
           <div className="flex flex-col items-center gap-2">
+            <div
+              title={userName}
+              className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-primary-tint text-xs font-semibold text-primary"
+            >
+              {initials}
+            </div>
             <ThemeToggle />
             <LogoutButton iconOnly />
           </div>
         ) : (
           <>
-            <div className="mb-2 flex items-center justify-between px-1">
-              <span className="truncate text-sm text-text-muted">{userName}</span>
+            <div className="mb-2 flex items-center justify-between px-3">
+              <div className="flex min-w-0 items-center gap-2.5">
+                <div className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-primary-tint text-xs font-semibold text-primary">
+                  {initials}
+                </div>
+                <span className="truncate text-sm text-text-muted">{userName}</span>
+              </div>
               <ThemeToggle />
             </div>
             <LogoutButton />
@@ -109,6 +109,28 @@ export default function Sidebar({ userName }: { userName: string }) {
         )}
       </div>
     </aside>
+  );
+}
+
+function renderNavItem(
+  item: { href: string; label: string; icon: () => JSX.Element },
+  pathname: string,
+  collapsed: boolean
+) {
+  const active = pathname === item.href || pathname.startsWith(item.href + "/");
+  const Icon = item.icon;
+  return (
+    <Link
+      key={item.href}
+      href={item.href}
+      title={collapsed ? item.label : undefined}
+      className={`flex items-center gap-2.5 rounded-md px-3 py-2 text-sm font-medium transition-colors ${
+        collapsed ? "justify-center" : ""
+      } ${active ? "bg-primary-tint text-primary" : "text-text-muted hover:bg-surface-secondary hover:text-text"}`}
+    >
+      <Icon />
+      {!collapsed && item.label}
+    </Link>
   );
 }
 
