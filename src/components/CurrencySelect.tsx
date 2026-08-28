@@ -21,7 +21,7 @@ export default function CurrencySelect({ value, onChange }: { value: string; onC
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
-        className="flex w-24 items-center justify-between rounded-md border border-border bg-surface px-3 py-2 text-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary/40"
+        className="flex w-24 items-center justify-between rounded-md border border-border bg-surface px-3 py-2.5 text-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary/40"
       >
         {value}
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
