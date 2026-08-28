@@ -32,7 +32,7 @@ export async function GET(_req: Request, { params }: { params: { id: string; exp
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  const [expense, members] = await Promise.all([
+  const [expense, members, group, actor] = await Promise.all([
     prisma.expense.findFirst({
       where: { id: params.expenseId, groupId: params.id },
       include: {
@@ -42,10 +42,12 @@ export async function GET(_req: Request, { params }: { params: { id: string; exp
       },
     }),
     prisma.groupMember.findMany({ where: { groupId: params.id } }),
+    prisma.group.findUnique({ where: { id: params.id }, select: { isPersonal: true, name: true } }),
+    prisma.groupMember.findFirst({ where: { groupId: params.id, userId: session.userId } }),
   ]);
   if (!expense) return NextResponse.json({ error: "Expense not found" }, { status: 404 });
 
-  return NextResponse.json({ expense, members });
+  return NextResponse.json({ expense, members, group, selfMemberId: actor?.id });
 }
 
 // PATCH: edit an existing group expense. Replaces its payments/splits wholesale
@@ -119,7 +121,8 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     payments: paymentRows.map((p) => ({ groupMemberId: p.groupMemberId, amount: p.amount })),
     splits: splitRows.map((s) => ({ groupMemberId: s.groupMemberId, amount: s.amount })),
   };
-  const changes = diffExpense(before, after);
+  const memberNames = Object.fromEntries(groupMembers.map((m) => [m.id, m.displayName]));
+  const changes = diffExpense(before, after, memberNames);
 
   const actor = await prisma.groupMember.findFirst({ where: { groupId: params.id, userId: session.userId } });
 

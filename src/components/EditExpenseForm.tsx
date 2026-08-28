@@ -10,6 +10,7 @@ export default function EditExpenseForm({
   members,
   initial,
   historyEntries,
+  withNames,
   onSuccess,
 }: {
   groupId: string;
@@ -17,6 +18,7 @@ export default function EditExpenseForm({
   members: Member[];
   initial: ExpensePayload;
   historyEntries: ExpenseHistoryEntry[];
+  withNames?: string[] | null;
   onSuccess?: () => void;
 }) {
   const router = useRouter();
@@ -56,6 +58,16 @@ export default function EditExpenseForm({
       historyEntries={historyEntries}
       onSubmit={handleSubmit}
       onSuccess={onSuccess}
+      detailsExtra={
+        withNames ? (
+          <div>
+            <label className="block text-sm font-medium text-text">With</label>
+            <p className="mt-1 text-sm text-text-muted">
+              {withNames.length > 0 ? withNames.join(", ") : "Just you"}
+            </p>
+          </div>
+        ) : undefined
+      }
     />
   );
 }

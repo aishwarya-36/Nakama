@@ -17,6 +17,73 @@ export async function getContactBalanceByCurrency(contactId: string): Promise<Re
   return totals;
 }
 
+export interface ContactExpenseRow {
+  id: string;
+  groupId: string;
+  groupName: string;
+  date: Date;
+  description: string;
+  category: string | null;
+  notes: string | null;
+  currency: string;
+  amount: number;
+  paidByLabel: string;
+  members: { id: string; displayName: string }[];
+  payments: { groupMemberId: string; amount: number }[];
+  splits: { groupMemberId: string; amount: number }[];
+  history: { summary: string; changedBy: string; createdAt: Date }[];
+}
+
+/** Every expense (across every group and direct-expense thread) this contact is part of, newest first. */
+export async function getContactExpenses(contactId: string): Promise<ContactExpenseRow[]> {
+  const memberships = await prisma.groupMember.findMany({
+    where: { contactId },
+    select: { id: true, groupId: true },
+  });
+  if (memberships.length === 0) return [];
+  const memberIds = memberships.map((m) => m.id);
+  const groupIds = [...new Set(memberships.map((m) => m.groupId))];
+
+  const expenses = await prisma.expense.findMany({
+    where: {
+      groupId: { in: groupIds },
+      OR: [
+        { splits: { some: { groupMemberId: { in: memberIds } } } },
+        { payments: { some: { groupMemberId: { in: memberIds } } } },
+      ],
+    },
+    include: {
+      group: { select: { name: true, isPersonal: true, members: { select: { id: true, displayName: true } } } },
+      payments: { include: { groupMember: { select: { displayName: true } } } },
+      splits: true,
+      history: { orderBy: { createdAt: "desc" } },
+    },
+    orderBy: { date: "desc" },
+  });
+
+  return expenses.map((e) => ({
+    id: e.id,
+    groupId: e.groupId,
+    groupName: e.group.isPersonal ? "Direct expense" : e.group.name,
+    date: e.date,
+    description: e.description,
+    category: e.category,
+    notes: e.notes,
+    currency: e.currency,
+    amount: Number(e.amount),
+    paidByLabel:
+      e.payments.length === 0
+        ? "—"
+        : e.payments.length === 1
+          ? e.payments[0].groupMember.displayName
+          : e.payments.map((p) => p.groupMember.displayName).join(", "),
+    members: e.group.members,
+    payments: e.payments.map((p) => ({ groupMemberId: p.groupMemberId, amount: Number(p.amount) })),
+    splits: e.splits.map((s) => ({ groupMemberId: s.groupMemberId, amount: Number(s.amount) })),
+    history: e.history,
+  }));
+}
+
 export const PEOPLE_PAGE_SIZE = 15;
 
 export interface PersonSummary {

@@ -1,6 +1,7 @@
 "use client";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { useToast } from "./ToastProvider";
 import SearchToggle from "./SearchToggle";
 import AddPersonButton from "./AddPersonButton";
@@ -111,7 +112,9 @@ export default function PeopleList({
               <div className="flex items-center justify-between gap-3">
                 <div>
                   <span className="inline-flex items-center gap-1.5">
-                    <span className="font-medium text-text">{p.name}</span>
+                    <Link href={`/people/${p.id}`} className="font-medium text-text hover:text-primary hover:underline">
+                      {p.name}
+                    </Link>
                     <EditPersonButton
                       person={{ id: p.id, name: p.name, baseCurrency: p.baseCurrency, email: p.email, upiId: p.upiId }}
                       onSaved={(updated) =>

@@ -24,7 +24,7 @@ export default async function HomePage() {
     <div className="mx-auto max-w-5xl px-4 py-8">
       <div className="mb-1 flex items-start justify-between gap-3">
         <h1 className="text-2xl font-semibold text-text">Welcome back, {user.name}</h1>
-        <AddExpenseButton userName={user.name} baseCurrency={user.baseCurrency} />
+        <AddExpenseButton userName={user.name} baseCurrency={user.baseCurrency} menu={false} />
       </div>
       <p className="mb-6 text-sm text-text-muted">
         Here's where things stand across all your groups.

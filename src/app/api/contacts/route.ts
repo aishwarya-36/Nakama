@@ -18,7 +18,10 @@ export async function GET(req: NextRequest) {
       ...(query ? { name: { contains: query, mode: "insensitive" } } : {}),
     },
     include: {
-      groupMembers: { include: { group: { select: { name: true } } } },
+      groupMembers: {
+        where: { group: { isPersonal: false } },
+        include: { group: { select: { name: true } } },
+      },
     },
     orderBy: { name: "asc" },
     take: 20,

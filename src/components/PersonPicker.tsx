@@ -1,6 +1,5 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
-import { ALL_CURRENCIES } from "@/lib/currencies";
 
 export interface PersonValue {
   name: string;
@@ -20,13 +19,11 @@ export default function PersonPicker({
   onChange,
   onRemove,
   placeholder,
-  defaultCurrency = "USD",
 }: {
   value: PersonValue;
   onChange: (v: PersonValue) => void;
   onRemove?: () => void;
   placeholder?: string;
-  defaultCurrency?: string;
 }) {
   const [suggestions, setSuggestions] = useState<Contact[]>([]);
   const [open, setOpen] = useState(false);
@@ -95,18 +92,6 @@ export default function PersonPicker({
           </div>
         )}
       </div>
-      <select
-        value={value.baseCurrency}
-        onChange={(e) => onChange({ ...value, baseCurrency: e.target.value })}
-        title="This person's base currency"
-        className="w-24 rounded-md border border-border bg-surface px-2 py-2 text-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary/40"
-      >
-        {ALL_CURRENCIES.map((c) => (
-          <option key={c.code} value={c.code}>
-            {c.code}
-          </option>
-        ))}
-      </select>
       {onRemove && (
         <button type="button" onClick={onRemove} className="px-1 text-sm text-text-faint hover:text-error">
           ✕

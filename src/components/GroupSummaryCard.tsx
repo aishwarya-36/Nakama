@@ -16,14 +16,19 @@ export default function GroupSummaryCard({ groupId }: { groupId: string }) {
 
   useEffect(() => {
     let cancelled = false;
-    fetch(`/api/groups/${groupId}/balances`)
-      .then((r) => r.json())
-      .then((data) => {
-        if (!cancelled) setDebts(data.debts || []);
-      })
-      .finally(() => !cancelled && setLoading(false));
+    function load() {
+      fetch(`/api/groups/${groupId}/balances`)
+        .then((r) => r.json())
+        .then((data) => {
+          if (!cancelled) setDebts(data.debts || []);
+        })
+        .finally(() => !cancelled && setLoading(false));
+    }
+    load();
+    window.addEventListener("nakama:settlement-changed", load);
     return () => {
       cancelled = true;
+      window.removeEventListener("nakama:settlement-changed", load);
     };
   }, [groupId]);
 

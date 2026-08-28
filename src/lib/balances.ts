@@ -93,6 +93,42 @@ export async function getGroupExpenseCurrencies(groupId: string): Promise<string
   return rows.map((r) => r.currency);
 }
 
+/** One member's own owed/owe totals within a single group, converted to `targetCurrency`,
+ *  with a per-currency breakdown alongside — for that group page's summary cards. */
+export async function computeMemberOweOwed(
+  groupId: string,
+  memberId: string,
+  targetCurrency: string
+): Promise<{
+  owed: number;
+  owe: number;
+  byCurrency: Record<string, { owedToYou: number; youOwe: number }>;
+  skippedCurrencies: string[];
+}> {
+  const balances = await computeGroupBalances(groupId);
+  const mine = balances.find((b) => b.memberId === memberId);
+
+  let owed = 0;
+  let owe = 0;
+  const byCurrency: Record<string, { owedToYou: number; youOwe: number }> = {};
+  const skipped: string[] = [];
+
+  if (mine) {
+    for (const [currency, amount] of Object.entries(mine.byCurrency)) {
+      byCurrency[currency] = { owedToYou: amount > 0 ? amount : 0, youOwe: amount < 0 ? -amount : 0 };
+      const converted = await convert(amount, currency, targetCurrency);
+      if (converted === null) {
+        skipped.push(currency);
+        continue;
+      }
+      if (converted > 0) owed += converted;
+      else owe += -converted;
+    }
+  }
+
+  return { owed, owe, byCurrency, skippedCurrencies: skipped };
+}
+
 /**
  * Personal overview across every group the user belongs to: net balance
  * (converted to their base currency) and simple totals for the Home/Expenses pages.
@@ -116,6 +152,7 @@ export async function computeUserOverview(userId: string, baseCurrency: string) 
   let thisMonthPersonalSpend = 0;
   const skippedCurrencies = new Set<string>();
   const perGroup: { groupId: string; groupName: string; net: number }[] = [];
+  const byCurrency: Record<string, { owedToYou: number; youOwe: number }> = {};
 
   for (const m of myMemberships) {
     const balances = await computeGroupBalances(m.groupId);
@@ -123,6 +160,10 @@ export async function computeUserOverview(userId: string, baseCurrency: string) 
     let groupNet = 0;
     if (mine) {
       for (const [currency, amount] of Object.entries(mine.byCurrency)) {
+        if (!byCurrency[currency]) byCurrency[currency] = { owedToYou: 0, youOwe: 0 };
+        if (amount > 0) byCurrency[currency].owedToYou += amount;
+        else byCurrency[currency].youOwe += -amount;
+
         const converted = await convert(amount, currency, baseCurrency);
         if (converted === null) {
           skippedCurrencies.add(currency);
@@ -172,6 +213,7 @@ export async function computeUserOverview(userId: string, baseCurrency: string) 
     thisMonthGroupSpend,
     thisMonthPersonalSpend,
     perGroup,
+    byCurrency,
     skippedCurrencies: Array.from(skippedCurrencies),
     groupCount: myMemberships.length,
   };

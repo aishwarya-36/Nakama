@@ -7,9 +7,11 @@ import AddDirectExpenseForm from "./AddDirectExpenseForm";
 export default function AddExpenseButton({
   userName,
   baseCurrency,
+  menu = true,
 }: {
   userName: string;
   baseCurrency?: string;
+  menu?: boolean;
 }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [modal, setModal] = useState<"mine" | "group" | null>(null);
@@ -23,6 +25,27 @@ export default function AddExpenseButton({
     document.addEventListener("mousedown", onClickOutside);
     return () => document.removeEventListener("mousedown", onClickOutside);
   }, [menuOpen]);
+
+  function onAdded() {
+    window.dispatchEvent(new Event("nakama:expenses-changed"));
+    setModal(null);
+  }
+
+  if (!menu) {
+    return (
+      <>
+        <button
+          onClick={() => setModal("group")}
+          className="flex items-center gap-1 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-contrast hover:bg-primary-hover"
+        >
+          + Add expense
+        </button>
+        <Modal open={modal === "group"} onClose={() => setModal(null)} title="Add an expense">
+          <AddDirectExpenseForm userName={userName} onSuccess={onAdded} />
+        </Modal>
+      </>
+    );
+  }
 
   return (
     <>
@@ -61,10 +84,10 @@ export default function AddExpenseButton({
       </div>
 
       <Modal open={modal === "mine"} onClose={() => setModal(null)} title="Add my spend">
-        <AddMySpendForm onSuccess={() => setModal(null)} defaultCurrency={baseCurrency} />
+        <AddMySpendForm onSuccess={onAdded} defaultCurrency={baseCurrency} />
       </Modal>
       <Modal open={modal === "group"} onClose={() => setModal(null)} title="Add an expense">
-        <AddDirectExpenseForm userName={userName} onSuccess={() => setModal(null)} />
+        <AddDirectExpenseForm userName={userName} onSuccess={onAdded} />
       </Modal>
     </>
   );

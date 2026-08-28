@@ -3,14 +3,6 @@ import { useEffect, useState } from "react";
 
 type NativeBalance = { memberId: string; displayName: string; byCurrency: Record<string, number> };
 type ConvertedBalance = { memberId: string; displayName: string; total: number; skippedCurrencies: string[] };
-type Debt = {
-  fromMemberId: string;
-  fromName: string;
-  toMemberId: string;
-  toName: string;
-  amount: number;
-  currency: string;
-};
 
 export default function BalancesPanel({
   groupId,
@@ -25,29 +17,32 @@ export default function BalancesPanel({
   const [availableCurrencies, setAvailableCurrencies] = useState<string[]>([defaultCurrency]);
   const [nativeBalances, setNativeBalances] = useState<NativeBalance[]>([]);
   const [converted, setConverted] = useState<ConvertedBalance[]>([]);
-  const [debts, setDebts] = useState<Debt[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     let cancelled = false;
-    setLoading(true);
-    const url = displayCurrency
-      ? `/api/groups/${groupId}/balances?currency=${displayCurrency}`
-      : `/api/groups/${groupId}/balances`;
-    fetch(url)
-      .then((r) => r.json())
-      .then((data) => {
-        if (cancelled) return;
-        setDebts(data.debts || []);
-        if (data.availableCurrencies) setAvailableCurrencies(data.availableCurrencies);
-        setNativeBalances(data.native || []);
-        if (displayCurrency) {
-          setConverted(data.balances || []);
-        }
-      })
-      .finally(() => !cancelled && setLoading(false));
+    function load() {
+      setLoading(true);
+      const url = displayCurrency
+        ? `/api/groups/${groupId}/balances?currency=${displayCurrency}`
+        : `/api/groups/${groupId}/balances`;
+      fetch(url)
+        .then((r) => r.json())
+        .then((data) => {
+          if (cancelled) return;
+          if (data.availableCurrencies) setAvailableCurrencies(data.availableCurrencies);
+          setNativeBalances(data.native || []);
+          if (displayCurrency) {
+            setConverted(data.balances || []);
+          }
+        })
+        .finally(() => !cancelled && setLoading(false));
+    }
+    load();
+    window.addEventListener("nakama:settlement-changed", load);
     return () => {
       cancelled = true;
+      window.removeEventListener("nakama:settlement-changed", load);
     };
   }, [groupId, displayCurrency]);
 
@@ -118,20 +113,6 @@ export default function BalancesPanel({
             </p>
           )}
 
-          {debts.length > 0 && (
-            <div>
-              <h3 className="mb-1.5 text-sm font-medium text-text">Suggested settlements</h3>
-              <ul className="space-y-1 text-sm text-text-muted">
-                {debts.map((d, i) => (
-                  <li key={i}>
-                    <span className="font-medium">{d.fromName}</span> owes{" "}
-                    <span className="font-medium">{d.toName}</span> {d.amount.toFixed(2)} {d.currency}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
-          {debts.length === 0 && <p className="text-sm text-text-faint">Everyone's settled up.</p>}
         </>
       )}
     </div>

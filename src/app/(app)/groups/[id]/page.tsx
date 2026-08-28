@@ -5,6 +5,7 @@ import { prisma } from "@/lib/db";
 import AddGroupExpenseButton from "@/components/AddGroupExpenseButton";
 import AddMemberForm from "@/components/AddMemberForm";
 import BalancesPanel from "@/components/BalancesPanel";
+import GroupBalanceCards from "@/components/GroupBalanceCards";
 import GroupSettingsButton from "@/components/GroupSettingsButton";
 import GroupNameEditor from "@/components/GroupNameEditor";
 import GroupSummaryCard from "@/components/GroupSummaryCard";
@@ -50,6 +51,8 @@ export default async function GroupPage({ params }: { params: { id: string } }) 
           <AddGroupExpenseButton groupId={group.id} members={group.members} defaultCurrency={group.defaultCurrency} />
         </div>
       </div>
+
+      <GroupBalanceCards groupId={group.id} members={group.members} defaultCurrency={group.defaultCurrency} />
 
       <GroupSummaryCard groupId={group.id} />
 

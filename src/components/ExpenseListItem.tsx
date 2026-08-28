@@ -18,6 +18,7 @@ export default function ExpenseListItem({
   currency,
   initial,
   historyEntries,
+  contextLabel,
 }: {
   groupId: string;
   expenseId: string;
@@ -30,6 +31,7 @@ export default function ExpenseListItem({
   currency: string;
   initial: ExpensePayload;
   historyEntries: ExpenseHistoryEntry[];
+  contextLabel?: string;
 }) {
   const [open, setOpen] = useState(false);
   return (
@@ -40,6 +42,7 @@ export default function ExpenseListItem({
         className="-mx-2 flex w-full items-center justify-between rounded-md px-2 py-3 text-left hover:bg-surface-secondary"
       >
         <div>
+          {contextLabel && <div className="text-xs font-medium text-primary">{contextLabel}</div>}
           <div className="font-medium text-text">{description}</div>
           <div className="text-sm text-text-muted">
             Paid by {paidByLabel} · {dateLabel}

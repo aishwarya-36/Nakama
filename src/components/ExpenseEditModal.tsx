@@ -39,6 +39,7 @@ export default function ExpenseEditModal({
   const [members, setMembers] = useState<Member[]>([]);
   const [initial, setInitial] = useState<ExpensePayload | null>(null);
   const [historyEntries, setHistoryEntries] = useState<ExpenseHistoryEntry[]>([]);
+  const [withNames, setWithNames] = useState<string[] | null>(null);
 
   useEffect(() => {
     if (!open || !groupId || !expenseId) return;
@@ -48,7 +49,14 @@ export default function ExpenseEditModal({
     setInitial(null);
     fetch(`/api/groups/${groupId}/expenses/${expenseId}`)
       .then((r) => r.json())
-      .then((data: { expense?: ExpenseDetail; members?: Member[]; error?: string }) => {
+      .then(
+        (data: {
+          expense?: ExpenseDetail;
+          members?: Member[];
+          group?: { isPersonal: boolean; name: string } | null;
+          selfMemberId?: string;
+          error?: string;
+        }) => {
         if (cancelled) return;
         if (!data.expense) {
           setError(data.error || "Couldn't load expense");
@@ -56,6 +64,11 @@ export default function ExpenseEditModal({
         }
         const exp = data.expense;
         setMembers(data.members || []);
+        setWithNames(
+          data.group?.isPersonal
+            ? (data.members || []).filter((m) => m.id !== data.selfMemberId).map((m) => m.displayName)
+            : null
+        );
         setInitial({
           description: exp.description,
           amount: Number(exp.amount),
@@ -72,7 +85,8 @@ export default function ExpenseEditModal({
         setHistoryEntries(
           exp.history.map((h) => ({ summary: h.summary, changedBy: h.changedBy, createdAt: h.createdAt }))
         );
-      })
+        }
+      )
       .catch(() => !cancelled && setError("Couldn't load expense"))
       .finally(() => !cancelled && setLoading(false));
     return () => {
@@ -91,6 +105,7 @@ export default function ExpenseEditModal({
           members={members}
           initial={initial}
           historyEntries={historyEntries}
+          withNames={withNames}
           onSuccess={() => {
             onSaved?.();
             onClose();

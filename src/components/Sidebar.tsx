@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import ThemeToggle from "./ThemeToggle";
 import LogoutButton from "./LogoutButton";
+import Logo from "./Logo";
 
 const NAV_ITEMS = [
   { href: "/home", label: "Home", icon: HomeIcon },
@@ -11,6 +12,7 @@ const NAV_ITEMS = [
   { href: "/people", label: "People", icon: PersonIcon },
   { href: "/expenses", label: "Expenses", icon: ExpensesIcon },
 ];
+const HELP_ITEM = { href: "/help", label: "Help", icon: HelpIcon };
 const SETTINGS_ITEM = { href: "/settings", label: "Settings", icon: SettingsIcon };
 
 const STORAGE_KEY = "sidebar:collapsed";
@@ -52,10 +54,7 @@ export default function Sidebar({ userName }: { userName: string }) {
       }`}
     >
       <div className="flex items-center gap-2 border-b border-border px-4 py-4">
-        <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-md bg-primary text-sm font-bold text-primary-contrast">
-          {userName.charAt(0).toUpperCase()}
-        </div>
-        {!collapsed && <span className="truncate text-sm font-semibold text-text">Nakama</span>}
+        <Logo compact={collapsed} className="flex-shrink-0" />
         <button
           onClick={toggle}
           title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
@@ -78,7 +77,10 @@ export default function Sidebar({ userName }: { userName: string }) {
 
       <nav className="flex flex-1 flex-col p-3">
         <div className="space-y-1">{NAV_ITEMS.map((item) => renderNavItem(item, pathname, collapsed))}</div>
-        <div className="mt-auto space-y-1 pt-1">{renderNavItem(SETTINGS_ITEM, pathname, collapsed)}</div>
+        <div className="mt-auto space-y-1 pt-1">
+          {renderNavItem(HELP_ITEM, pathname, collapsed)}
+          {renderNavItem(SETTINGS_ITEM, pathname, collapsed)}
+        </div>
       </nav>
 
       <div className="border-t border-border p-3">
@@ -86,7 +88,7 @@ export default function Sidebar({ userName }: { userName: string }) {
           <div className="flex flex-col items-center gap-2">
             <div
               title={userName}
-              className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-primary-tint text-xs font-semibold text-primary"
+              className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-primary-tint text-xs font-semibold text-primary"
             >
               {initials}
             </div>
@@ -97,7 +99,7 @@ export default function Sidebar({ userName }: { userName: string }) {
           <>
             <div className="mb-2 flex items-center justify-between px-3">
               <div className="flex min-w-0 items-center gap-2.5">
-                <div className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-primary-tint text-xs font-semibold text-primary">
+                <div className="flex h-[18px] w-[18px] flex-shrink-0 items-center justify-center rounded-full bg-primary-tint text-[9px] font-semibold leading-none text-primary">
                   {initials}
                 </div>
                 <span className="truncate text-sm text-text-muted">{userName}</span>
@@ -179,6 +181,16 @@ function ExpensesIcon() {
     <svg {...iconProps()}>
       <rect x="3" y="4" width="18" height="16" rx="2" />
       <path d="M7 15l3-3 2.5 2.5L17 10" />
+    </svg>
+  );
+}
+
+function HelpIcon() {
+  return (
+    <svg {...iconProps()}>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M9.5 9a2.5 2.5 0 1 1 3.5 2.3c-.8.4-1.3 1-1.3 1.9v.3" />
+      <circle cx="12" cy="17" r="0.6" fill="currentColor" stroke="none" />
     </svg>
   );
 }

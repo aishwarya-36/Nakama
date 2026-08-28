@@ -1,5 +1,6 @@
 "use client";
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import Modal from "./Modal";
 import AddExpenseForm from "./AddExpenseForm";
 
@@ -15,6 +16,13 @@ export default function AddGroupExpenseButton({
   defaultCurrency?: string;
 }) {
   const [open, setOpen] = useState(false);
+  const router = useRouter();
+
+  function onAdded() {
+    setOpen(false);
+    router.refresh();
+  }
+
   return (
     <>
       <button
@@ -28,7 +36,7 @@ export default function AddGroupExpenseButton({
           groupId={groupId}
           members={members}
           defaultCurrency={defaultCurrency}
-          onSuccess={() => setOpen(false)}
+          onSuccess={onAdded}
         />
       </Modal>
     </>

@@ -60,6 +60,7 @@ export default function ExpenseTabsForm({
   const toast = useToast();
   const isEdit = !!initial;
   const TABS = historyEntries ? [...BASE_TABS, "History" as const] : BASE_TABS;
+  const LAST_DATA_TAB = 2;
   const [tab, setTab] = useState(0);
   const [loading, setLoading] = useState(false);
 
@@ -126,8 +127,12 @@ export default function ExpenseTabsForm({
     setIncluded((prev) => ({ ...prev, [ref]: !prev[ref] }));
   }
 
-  async function handleSubmit(e: React.FormEvent) {
+  function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (tab === LAST_DATA_TAB) submit();
+  }
+
+  async function submit() {
     const amt = parseFloat(amount);
     if (!amt || amt <= 0) {
       toast.error("Enter a valid amount");
@@ -196,8 +201,14 @@ export default function ExpenseTabsForm({
     onSuccess?.();
   }
 
+  function handleFormKeyDown(e: React.KeyboardEvent<HTMLFormElement>) {
+    if (e.key === "Enter" && tab !== LAST_DATA_TAB) {
+      e.preventDefault();
+    }
+  }
+
   return (
-    <form onSubmit={handleSubmit}>
+    <form onSubmit={handleSubmit} onKeyDown={handleFormKeyDown}>
       <div className="mb-4 flex gap-1 border-b border-border">
         {TABS.map((t, i) => (
           <button
@@ -235,7 +246,7 @@ export default function ExpenseTabsForm({
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
                 placeholder="0.00"
-                className="w-full min-w-0 rounded-md border border-border bg-surface px-3 py-2.5 text-lg tabular-nums outline-none focus:border-primary focus:ring-1 focus:ring-primary/40"
+                className="h-12 w-full min-w-0 rounded-md border border-border bg-surface px-3 text-lg tabular-nums outline-none focus:border-primary focus:ring-1 focus:ring-primary/40"
               />
               <CurrencySelect value={currency} onChange={setCurrency} />
             </div>
@@ -254,21 +265,22 @@ export default function ExpenseTabsForm({
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-text">Notes (optional)</label>
-              <input
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
-                placeholder="Anything worth remembering"
-                className="mt-1 w-full rounded-md border border-border bg-surface px-3 py-2 text-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary/40"
-              />
+              <label className="block text-sm font-medium text-text">Category</label>
+              <div className="mt-1">
+                <CategoryPicker value={category} onChange={setCategory} />
+              </div>
             </div>
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-text">Category</label>
-            <div className="mt-1">
-              <CategoryPicker value={category} onChange={setCategory} />
-            </div>
+            <label className="block text-sm font-medium text-text">Notes (optional)</label>
+            <textarea
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              placeholder="Anything worth remembering"
+              rows={4}
+              className="mt-1 w-full resize-none rounded-md border border-border bg-surface px-3 py-2 text-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary/40"
+            />
           </div>
         </div>
       )}
@@ -422,7 +434,8 @@ export default function ExpenseTabsForm({
           </button>
         ) : (
           <button
-            type="submit"
+            type="button"
+            onClick={submit}
             disabled={loading}
             className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-contrast hover:bg-primary-hover disabled:opacity-60"
           >

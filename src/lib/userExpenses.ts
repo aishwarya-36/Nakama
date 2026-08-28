@@ -57,6 +57,13 @@ function paidByLabel(payments: { groupMember: { displayName: string } }[]): stri
   return `${payments[0].groupMember.displayName} +${payments.length - 1}`;
 }
 
+function directGroupLabel(members: { id: string; displayName: string }[], memberIds: string[]): string {
+  const others = members.filter((m) => !memberIds.includes(m.id)).map((m) => m.displayName);
+  if (others.length === 0) return "Direct";
+  if (others.length <= 2) return others.join(", ");
+  return `${others.slice(0, 2).join(", ")}…`;
+}
+
 async function buildWhere(
   userId: string,
   from?: Date,
@@ -95,7 +102,7 @@ function toRow(e: any, userId: string, memberIds: string[]): UserExpenseRow {
     category: e.category,
     notes: e.notes,
     groupId: e.groupId,
-    groupName: isMine ? "Personal" : e.group.isPersonal ? "Direct" : e.group.name,
+    groupName: isMine ? "Personal" : e.group.isPersonal ? directGroupLabel(e.group.members, memberIds) : e.group.name,
     isPersonal: e.group.isPersonal,
     isMine,
     paidByName: paidByLabel(e.payments),
@@ -136,7 +143,14 @@ export async function getUserExpensesPage(
     where,
     include: {
       payments: { include: { groupMember: { select: { displayName: true } } } },
-      group: { select: { name: true, isPersonal: true, personalKey: true } },
+      group: {
+        select: {
+          name: true,
+          isPersonal: true,
+          personalKey: true,
+          members: { select: { id: true, displayName: true } },
+        },
+      },
       splits: { where: { groupMemberId: { in: memberIds } } },
     },
     orderBy: { date: "desc" },
@@ -168,7 +182,14 @@ export async function getAllUserExpenses(
     where,
     include: {
       payments: { include: { groupMember: { select: { displayName: true } } } },
-      group: { select: { name: true, isPersonal: true, personalKey: true } },
+      group: {
+        select: {
+          name: true,
+          isPersonal: true,
+          personalKey: true,
+          members: { select: { id: true, displayName: true } },
+        },
+      },
       splits: { where: { groupMemberId: { in: memberIds } } },
     },
     orderBy: { date: "desc" },

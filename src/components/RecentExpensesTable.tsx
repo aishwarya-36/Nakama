@@ -43,9 +43,11 @@ const OWE_OPTIONS: { value: string; label: string }[] = [
 export default function RecentExpensesTable({
   fixedScope,
   showOweFilter = false,
+  showPaidBy = true,
 }: {
   fixedScope?: "mine" | "group";
   showOweFilter?: boolean;
+  showPaidBy?: boolean;
 }) {
   const [range, setRange] = useState("");
   const [scope, setScope] = useState(fixedScope || "");
@@ -79,6 +81,15 @@ export default function RecentExpensesTable({
   useEffect(() => {
     setPage(1);
     load(range, scope, owe, q, 1, true);
+  }, [range, scope, owe, q, load]);
+
+  useEffect(() => {
+    function onChanged() {
+      setPage(1);
+      load(range, scope, owe, q, 1, true);
+    }
+    window.addEventListener("nakama:expenses-changed", onChanged);
+    return () => window.removeEventListener("nakama:expenses-changed", onChanged);
   }, [range, scope, owe, q, load]);
 
   function loadMore() {
@@ -152,9 +163,9 @@ export default function RecentExpensesTable({
               <th className="py-2 pr-3 font-medium">Date</th>
               <th className="py-2 pr-3 font-medium">Description</th>
               <th className="py-2 pr-3 font-medium">Group</th>
-              <th className="py-2 pr-3 font-medium">Paid by</th>
+              {showPaidBy && <th className="py-2 pr-3 font-medium">Paid by</th>}
               <th className="py-2 pr-3 text-right font-medium">Your share</th>
-              <th className="py-2 pr-3 text-right font-medium">Amount</th>
+              <th className="py-2 pr-3 text-right font-medium">{showPaidBy ? "Amount" : "Amount paid"}</th>
               {showOweFilter && <th className="py-2 text-right font-medium">Status</th>}
             </tr>
           </thead>
@@ -170,12 +181,12 @@ export default function RecentExpensesTable({
                 </td>
                 <td className="py-2 pr-3 text-text">{r.description}</td>
                 <td className="py-2 pr-3 text-text-muted">{r.groupName}</td>
-                <td className="py-2 pr-3 text-text-muted">{r.paidByName}</td>
+                {showPaidBy && <td className="py-2 pr-3 text-text-muted">{r.paidByName}</td>}
                 <td className="py-2 pr-3 text-right text-text-muted">
                   {r.yourShare.toFixed(2)} {r.currency}
                 </td>
                 <td className="py-2 pr-3 text-right font-medium text-text">
-                  {r.amount.toFixed(2)} {r.currency}
+                  {(showPaidBy ? r.amount : r.yourPaid).toFixed(2)} {r.currency}
                 </td>
                 {showOweFilter && (
                   <td className="py-2 text-right">

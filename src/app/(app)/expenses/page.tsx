@@ -32,7 +32,7 @@ export default async function ExpensesPage() {
 
       <div className="mt-6 rounded-lg border border-border bg-surface p-5 shadow-sm">
         <h2 className="mb-4 text-lg font-medium text-text">Recent spending</h2>
-        <RecentExpensesTable />
+        <RecentExpensesTable showPaidBy={false} />
       </div>
     </div>
   );

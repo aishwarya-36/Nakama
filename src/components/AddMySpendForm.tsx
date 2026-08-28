@@ -98,7 +98,7 @@ export default function AddMySpendForm({
             value={amount}
             onChange={(e) => setAmount(e.target.value)}
             placeholder="0.00"
-            className="w-full min-w-0 rounded-md border border-border bg-surface px-3 py-2.5 text-lg tabular-nums outline-none focus:border-primary focus:ring-1 focus:ring-primary/40"
+            className="h-12 w-full min-w-0 rounded-md border border-border bg-surface px-3 text-lg tabular-nums outline-none focus:border-primary focus:ring-1 focus:ring-primary/40"
           />
           <CurrencySelect value={currency} onChange={setCurrency} />
         </div>
@@ -115,21 +115,22 @@ export default function AddMySpendForm({
           />
         </div>
         <div>
-          <label className="block text-sm font-medium text-text">Notes (optional)</label>
-          <input
-            value={notes}
-            onChange={(e) => setNotes(e.target.value)}
-            placeholder="Anything worth remembering"
-            className="mt-1 w-full rounded-md border border-border bg-surface px-3 py-2 text-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary/40"
-          />
+          <label className="block text-sm font-medium text-text">Category</label>
+          <div className="mt-1">
+            <CategoryPicker value={category} onChange={setCategory} />
+          </div>
         </div>
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-text">Category</label>
-        <div className="mt-1">
-          <CategoryPicker value={category} onChange={setCategory} />
-        </div>
+        <label className="block text-sm font-medium text-text">Notes (optional)</label>
+        <textarea
+          value={notes}
+          onChange={(e) => setNotes(e.target.value)}
+          placeholder="Anything worth remembering"
+          rows={4}
+          className="mt-1 w-full resize-none rounded-md border border-border bg-surface px-3 py-2 text-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary/40"
+        />
       </div>
 
       <div className="flex justify-end border-t border-border pt-4">
