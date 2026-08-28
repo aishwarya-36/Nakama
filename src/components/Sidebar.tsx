@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import ThemeToggle from "./ThemeToggle";
 import LogoutButton from "./LogoutButton";
 import Logo from "./Logo";
+import packageJson from "../../package.json";
 
 const NAV_ITEMS = [
   { href: "/home", label: "Home", icon: HomeIcon },
@@ -96,6 +97,7 @@ export default function Sidebar({ userName }: { userName: string }) {
             </div>
             <ThemeToggle />
             <LogoutButton iconOnly />
+            <span className="text-[10px] text-text-faint">v{packageJson.version}</span>
           </div>
         ) : (
           <>
@@ -109,6 +111,7 @@ export default function Sidebar({ userName }: { userName: string }) {
               <ThemeToggle />
             </div>
             <LogoutButton />
+            <div className="mt-2 px-3 text-[10px] text-text-faint">v{packageJson.version}</div>
           </>
         )}
       </div>
