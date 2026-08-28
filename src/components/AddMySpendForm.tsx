@@ -13,12 +13,18 @@ function todayISODate() {
 // personal group every time (found-or-created, contactIds: []), so it
 // skips the With / Paid by / Split tabs entirely: it's always paid by
 // and split 100% to "me".
-export default function AddMySpendForm({ onSuccess }: { onSuccess?: () => void }) {
+export default function AddMySpendForm({
+  onSuccess,
+  defaultCurrency = "USD",
+}: {
+  onSuccess?: () => void;
+  defaultCurrency?: string;
+}) {
   const router = useRouter();
   const toast = useToast();
   const [description, setDescription] = useState("");
   const [amount, setAmount] = useState("");
-  const [currency, setCurrency] = useState("USD");
+  const [currency, setCurrency] = useState(defaultCurrency);
   const [category, setCategory] = useState("");
   const [notes, setNotes] = useState("");
   const [date, setDate] = useState(todayISODate());
