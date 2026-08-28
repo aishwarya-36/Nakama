@@ -51,6 +51,17 @@
   --color-info-text: 29 78 216;
   --color-info-tint: 239 246 255;
 
+  /* Categorical chart palette — fixed hue order, validated for CVD-safe adjacent
+     pairs in stacked bars/lines (see dataviz skill). Never reorder or cycle. */
+  --color-cat-food: 42 120 214; /* blue */
+  --color-cat-movie: 235 104 52; /* orange */
+  --color-cat-transport: 27 175 122; /* aqua */
+  --color-cat-shopping: 237 161 0; /* yellow */
+  --color-cat-home: 232 123 164; /* magenta */
+  --color-cat-travel: 0 131 0; /* green */
+  --color-cat-utilities: 74 58 167; /* violet */
+  --color-cat-other: 227 73 72; /* red */
+
   --font-family: var(--font-inter), "Segoe UI", system-ui, -apple-system, sans-serif;
 
   --border-radius-sm: 6px;
@@ -109,6 +120,15 @@
   --color-info: 59 130 246;
   --color-info-text: 96 165 250;
   --color-info-tint: 15 27 45;
+
+  --color-cat-food: 57 135 229;
+  --color-cat-movie: 217 89 38;
+  --color-cat-transport: 25 158 112;
+  --color-cat-shopping: 201 133 0;
+  --color-cat-home: 213 81 129;
+  --color-cat-travel: 0 131 0;
+  --color-cat-utilities: 144 133 233;
+  --color-cat-other: 230 103 103;
 
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
   --shadow-md: 0 4px 6px -2px rgba(0, 0, 0, 0.4), 0 10px 16px -6px rgba(0, 0, 0, 0.35);

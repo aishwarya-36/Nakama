@@ -1,5 +1,8 @@
 import { prisma } from "./db";
 import { convert } from "./currency";
+import { EXPENSE_CATEGORIES } from "./categories";
+
+const KNOWN_CATEGORY_KEYS = new Set(EXPENSE_CATEGORIES.map((c) => c.key as string).filter((k) => k !== "other"));
 
 export interface MemberBalance {
   memberId: string;
@@ -97,13 +100,20 @@ export async function getGroupExpenseCurrencies(groupId: string): Promise<string
 export async function computeUserOverview(userId: string, baseCurrency: string) {
   const myMemberships = await prisma.groupMember.findMany({
     where: { userId },
-    select: { id: true, groupId: true, group: { select: { name: true } } },
+    select: { id: true, groupId: true, group: { select: { name: true, isPersonal: true, personalKey: true } } },
   });
+  const soloKey = `solo:${userId}`;
+
+  const monthStart = new Date();
+  monthStart.setDate(1);
+  monthStart.setHours(0, 0, 0, 0);
 
   let totalOwedToYou = 0;
   let totalYouOwe = 0;
   let totalPaidByYou = 0;
   let totalYourShare = 0;
+  let thisMonthGroupSpend = 0;
+  let thisMonthPersonalSpend = 0;
   const skippedCurrencies = new Set<string>();
   const perGroup: { groupId: string; groupName: string; net: number }[] = [];
 
@@ -139,7 +149,14 @@ export async function computeUserOverview(userId: string, baseCurrency: string) 
       }
       for (const split of exp.splits) {
         const converted = await convert(Number(split.amount), exp.currency, baseCurrency);
-        if (converted !== null) totalYourShare += converted;
+        if (converted !== null) {
+          totalYourShare += converted;
+          if (exp.date >= monthStart) {
+            const isSolo = m.group.isPersonal && m.group.personalKey === soloKey;
+            if (isSolo) thisMonthPersonalSpend += converted;
+            else thisMonthGroupSpend += converted;
+          }
+        }
       }
     }
   }
@@ -151,6 +168,9 @@ export async function computeUserOverview(userId: string, baseCurrency: string) 
     totalYouOwe,
     totalPaidByYou,
     totalYourShare,
+    thisMonthTotal: thisMonthGroupSpend + thisMonthPersonalSpend,
+    thisMonthGroupSpend,
+    thisMonthPersonalSpend,
     perGroup,
     skippedCurrencies: Array.from(skippedCurrencies),
     groupCount: myMemberships.length,
@@ -176,15 +196,21 @@ export async function computeMonthlySpending(
 
   const splits = await prisma.expenseSplit.findMany({
     where: { groupMemberId: { in: memberIds }, expense: { date: { gte: since } } },
-    include: { expense: { select: { date: true, currency: true } } },
+    include: { expense: { select: { date: true, currency: true, category: true } } },
   });
 
-  const buckets = new Map<string, number>(); // "YYYY-MM" -> total
+  const emptyCategories = () =>
+    Object.fromEntries(EXPENSE_CATEGORIES.map((c) => [c.key, 0])) as Record<string, number>;
+
+  const buckets = new Map<string, { total: number; byCategory: Record<string, number> }>(); // "YYYY-MM" -> totals
   // pre-seed so months with no spending still show a 0 bar
   for (let i = 0; i < months; i++) {
     const d = new Date(since);
     d.setMonth(d.getMonth() + i);
-    buckets.set(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`, 0);
+    buckets.set(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`, {
+      total: 0,
+      byCategory: emptyCategories(),
+    });
   }
 
   for (const s of splits) {
@@ -192,12 +218,19 @@ export async function computeMonthlySpending(
     const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
     const converted = await convert(Number(s.amount), s.expense.currency, baseCurrency);
     if (converted === null) continue;
-    buckets.set(key, (buckets.get(key) || 0) + converted);
+    const bucket = buckets.get(key);
+    if (!bucket) continue;
+    const categoryKey = s.expense.category && KNOWN_CATEGORY_KEYS.has(s.expense.category) ? s.expense.category : "other";
+    bucket.total += converted;
+    bucket.byCategory[categoryKey] += converted;
   }
 
-  return Array.from(buckets.entries()).map(([month, total]) => ({
+  return Array.from(buckets.entries()).map(([month, b]) => ({
     month,
-    total: Math.round(total * 100) / 100,
+    total: Math.round(b.total * 100) / 100,
+    byCategory: Object.fromEntries(
+      Object.entries(b.byCategory).map(([k, v]) => [k, Math.round(v * 100) / 100])
+    ),
   }));
 }
 /**

@@ -6,11 +6,14 @@ interface Overview {
   netBalance: number;
   totalOwedToYou: number;
   totalYouOwe: number;
+  thisMonthTotal: number;
+  thisMonthGroupSpend: number;
+  thisMonthPersonalSpend: number;
   groupCount: number;
   skippedCurrencies: string[];
 }
 
-export default function OverviewCards() {
+export default function OverviewCards({ variant = "balances" }: { variant?: "balances" | "spending" }) {
   const [data, setData] = useState<Overview | null>(null);
 
   useEffect(() => {
@@ -29,15 +32,22 @@ export default function OverviewCards() {
     );
   }
 
-  const cards = [
-    {
-      label: "Net balance",
-      value: data.netBalance,
-      tone: data.netBalance >= 0 ? "text-success-text" : "text-error",
-    },
-    { label: "Owed to you", value: data.totalOwedToYou, tone: "text-success-text" },
-    { label: "You owe", value: data.totalYouOwe, tone: "text-error" },
-  ];
+  const cards =
+    variant === "spending"
+      ? [
+          { label: "This month", value: data.thisMonthTotal, tone: "text-text" },
+          { label: "Group spend", value: data.thisMonthGroupSpend, tone: "text-text" },
+          { label: "Personal spend", value: data.thisMonthPersonalSpend, tone: "text-text" },
+        ]
+      : [
+          {
+            label: "Net balance",
+            value: data.netBalance,
+            tone: data.netBalance >= 0 ? "text-success-text" : "text-error",
+          },
+          { label: "Owed to you", value: data.totalOwedToYou, tone: "text-success-text" },
+          { label: "You owe", value: data.totalYouOwe, tone: "text-error" },
+        ];
 
   return (
     <div>

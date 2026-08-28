@@ -13,3 +13,16 @@ export const EXPENSE_CATEGORIES = [
 ] as const;
 
 export type CategoryKey = (typeof EXPENSE_CATEGORIES)[number]["key"];
+
+// Maps each category to its chart color CSS variable (defined in globals.css,
+// light + dark) — fixed hue order, shared by every place that colors categories.
+export const CATEGORY_COLOR_VAR: Record<string, string> = {
+  food: "--color-cat-food",
+  movie: "--color-cat-movie",
+  transport: "--color-cat-transport",
+  shopping: "--color-cat-shopping",
+  home: "--color-cat-home",
+  travel: "--color-cat-travel",
+  utilities: "--color-cat-utilities",
+  other: "--color-cat-other",
+};
