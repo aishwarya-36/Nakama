@@ -22,6 +22,32 @@ const patchSchema = z.object({
   splits: z.array(z.object({ groupMemberId: z.string().uuid(), value: z.number() })).optional(),
 });
 
+// GET: a single expense plus its group's members and change history — used to
+// lazily open the edit modal from places that don't already have this loaded
+// (e.g. the cross-group "recent spending" table).
+export async function GET(_req: Request, { params }: { params: { id: string; expenseId: string } }) {
+  const session = getSessionFromCookies();
+  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!(await assertMember(params.id, session.userId))) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
+  const [expense, members] = await Promise.all([
+    prisma.expense.findFirst({
+      where: { id: params.expenseId, groupId: params.id },
+      include: {
+        splits: true,
+        payments: { include: { groupMember: true } },
+        history: { orderBy: { createdAt: "desc" } },
+      },
+    }),
+    prisma.groupMember.findMany({ where: { groupId: params.id } }),
+  ]);
+  if (!expense) return NextResponse.json({ error: "Expense not found" }, { status: 404 });
+
+  return NextResponse.json({ expense, members });
+}
+
 // PATCH: edit an existing group expense. Replaces its payments/splits wholesale
 // and records a single ExpenseHistory entry summarizing what changed, so the
 // modal's History tab can show who changed what and when.

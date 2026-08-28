@@ -1,6 +1,7 @@
 "use client";
 import { useCallback, useEffect, useState } from "react";
 import SearchToggle from "./SearchToggle";
+import ExpenseEditModal from "./ExpenseEditModal";
 import { useInfiniteScrollSentinel } from "@/lib/useInfiniteScrollSentinel";
 
 interface Row {
@@ -32,6 +33,7 @@ export default function RecentExpensesTable() {
   const [rows, setRows] = useState<Row[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [editing, setEditing] = useState<{ groupId: string; expenseId: string } | null>(null);
 
   const load = useCallback(async (r: string, query: string, targetPage: number, replace: boolean) => {
     setLoading(true);
@@ -100,7 +102,11 @@ export default function RecentExpensesTable() {
           </thead>
           <tbody className="divide-y divide-border">
             {rows.map((r) => (
-              <tr key={r.id}>
+              <tr
+                key={r.id}
+                onClick={() => setEditing({ groupId: r.groupId, expenseId: r.id })}
+                className="cursor-pointer hover:bg-surface-secondary"
+              >
                 <td className="whitespace-nowrap py-2 pr-3 text-text-muted">
                   {new Date(r.date).toLocaleDateString()}
                 </td>
@@ -131,6 +137,17 @@ export default function RecentExpensesTable() {
         </div>
       )}
       {rows.length < total && <div ref={sentinelRef} className="h-1" />}
+
+      <ExpenseEditModal
+        groupId={editing?.groupId || ""}
+        expenseId={editing?.expenseId || ""}
+        open={!!editing}
+        onClose={() => setEditing(null)}
+        onSaved={() => {
+          setPage(1);
+          load(range, q, 1, true);
+        }}
+      />
     </div>
   );
 }
