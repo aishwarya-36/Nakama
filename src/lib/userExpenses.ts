@@ -120,18 +120,19 @@ function applyOweFilter(rows: UserExpenseRow[], owe?: ExpenseOweFilter): UserExp
   return rows;
 }
 
-// Payments are a completed settling action, not an outstanding split, so they never carry a
 // Only ever built for settlements you PAID (fromMemberId is yours) — a payment you receive is
-// income, not spending, and is excluded upstream in getSettlementRows. A payment you make is
-// entirely your own spend (no split), so it fully resolves — yourNet is always 0.
+// income, not spending, and is excluded upstream in getSettlementRows. Like an expense but with
+// no split: the full amount is "paid" and none of it is your own share, so you're owed it back —
+// exactly like fronting an expense that only the recipient benefited from.
 function settlementToRow(s: any, userId: string, memberIds: string[]): UserExpenseRow {
   const isMine = s.group.isPersonal && s.group.personalKey === `solo:${userId}`;
+  const amount = Number(s.amount);
   return {
     id: `settlement:${s.id}`,
     type: "payment",
     description: `Payment: ${s.fromMember.displayName} → ${s.toMember.displayName}`,
     date: s.date,
-    amount: Number(s.amount),
+    amount,
     currency: s.currency,
     category: null,
     notes: s.note,
@@ -140,9 +141,9 @@ function settlementToRow(s: any, userId: string, memberIds: string[]): UserExpen
     isPersonal: s.group.isPersonal,
     isMine,
     paidByName: s.fromMember.displayName,
-    yourShare: Number(s.amount),
-    yourPaid: Number(s.amount),
-    yourNet: 0,
+    yourShare: 0,
+    yourPaid: amount,
+    yourNet: amount,
   };
 }
 
