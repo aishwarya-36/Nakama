@@ -12,7 +12,7 @@ Expense splitter for groups and friends. Next.js 14 (App Router) + Prisma + Type
 
 Two independent Prisma schemas, kept field-for-field aligned by hand (Prisma can't target two datasources from one schema):
 
-- `prisma/online/schema.prisma` — Postgres, the schema the web app and today's cloud accounts use. Migrations in `prisma/online/migrations`.
+- `prisma/online/schema.prisma` — Postgres, the schema the web app and today's cloud accounts use. Migrations in `prisma/online/migrations`. Backed by a real Neon Postgres project (`rapid-union-82536887`, org `org-purple-cell-92228849`, branch `production`) — CLI linked via `.neon` (gitignored), env pulled into local `.env`'s `DATABASE_URL`. Neon CLI/MCP/skills are installed (`.agents/skills/neon*`, `skills-lock.json`) — see the `neon` skill for branch-first workflow, `neon env pull` to refresh `.env`, etc.
 - `prisma/offline/schema.prisma` — SQLite, for a future Electron-packaged desktop mode: no cloud account, a single local `User` ("You") gated by a PIN instead of signup, everyone else is necessarily a guest `Contact`. Migrations in `prisma/offline/migrations`.
 - Because SQLite has no native enum or `Json` column type, `Expense.splitType` is a plain `String` (app already used its own string-union type, see `SplitType` below) and `ExchangeRateSnapshot.rates` is JSON-encoded `String` (see `src/lib/currency.ts` `JSON.stringify`/`JSON.parse`) in **both** schemas, kept identical on purpose so the two generated Prisma Client types stay structurally compatible.
 - `src/lib/db.ts` casts the offline client to the online client's TS type — safe only because the schemas are kept aligned; don't let them drift.
