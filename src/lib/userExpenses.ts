@@ -47,6 +47,7 @@ export interface UserExpenseRow {
   groupName: string;
   isPersonal: boolean;
   isMine: boolean;
+  deletedAt: Date | null;
   paidByName: string;
   yourShare: number;
   yourPaid: number;
@@ -84,7 +85,12 @@ async function buildWhere(
     ...(scope === "mine"
       ? { group: { personalKey: soloKey } }
       : scope === "group"
-        ? { NOT: { group: { personalKey: soloKey } } }
+        ? // Not `NOT: { group: { personalKey: soloKey } }` — a real group's
+          // personalKey is null, and SQL's `NOT (x = 'foo')` is NULL (not
+          // TRUE) when x IS NULL, so that form silently excluded every real
+          // group's expenses. Spell out both "no personalKey" and "some
+          // other user's/pairing's personalKey" instead.
+          { group: { OR: [{ personalKey: null }, { personalKey: { not: soloKey } }] } }
         : {}),
   };
 }
@@ -108,11 +114,19 @@ function toRow(e: any, userId: string, memberIds: string[]): UserExpenseRow {
     groupName: isMine ? "Personal" : e.group.isPersonal ? directGroupLabel(e.group.members, memberIds) : e.group.name,
     isPersonal: e.group.isPersonal,
     isMine,
+    deletedAt: e.deletedAt,
     paidByName: paidByLabel(e.payments),
     yourShare,
     yourPaid,
     yourNet: yourPaid - yourShare,
   };
+}
+
+// A deleted solo "my spend" vanishes from this list entirely — a deleted
+// group/direct expense stays, struck through, so it must remain traceable
+// there. See ExpenseEditModal's identical isMine/solo distinction.
+function dropDeletedSolo(rows: UserExpenseRow[]): UserExpenseRow[] {
+  return rows.filter((r) => !(r.isMine && r.deletedAt));
 }
 
 function applyOweFilter(rows: UserExpenseRow[], owe?: ExpenseOweFilter): UserExpenseRow[] {
@@ -141,6 +155,7 @@ function settlementToRow(s: any, userId: string, memberIds: string[]): UserExpen
     groupName: isMine ? "Personal" : s.group.isPersonal ? directGroupLabel(s.group.members, memberIds) : s.group.name,
     isPersonal: s.group.isPersonal,
     isMine,
+    deletedAt: null,
     paidByName: s.fromMember.displayName,
     yourShare: 0,
     yourPaid: amount,
@@ -166,7 +181,7 @@ async function getSettlementRows(
       ...(scope === "mine"
         ? { group: { personalKey: soloKey } }
         : scope === "group"
-          ? { NOT: { group: { personalKey: soloKey } } }
+          ? { group: { OR: [{ personalKey: null }, { personalKey: { not: soloKey } }] } } // see buildWhere's comment above
           : {}),
     },
     include: {
@@ -229,8 +244,10 @@ export async function getUserExpensesPage(
   });
 
   const settlementRows = await getSettlementRows(userId, memberIds, opts.from, opts.to, opts.q, opts.scope);
-  const combined = [...expenses.map((e) => toRow(e, userId, memberIds)), ...settlementRows].sort(
-    (a, b) => b.date.getTime() - a.date.getTime()
+  const combined = dropDeletedSolo(
+    [...expenses.map((e) => toRow(e, userId, memberIds)), ...settlementRows].sort(
+      (a, b) => b.date.getTime() - a.date.getTime()
+    )
   );
   const rows = applyOweFilter(combined, opts.owe);
   const total = rows.length;
@@ -267,8 +284,10 @@ export async function getAllUserExpenses(
     orderBy: { date: "desc" },
   });
   const settlementRows = await getSettlementRows(userId, memberIds, from, to, undefined, scope);
-  const combined = [...expenses.map((e) => toRow(e, userId, memberIds)), ...settlementRows].sort(
-    (a, b) => b.date.getTime() - a.date.getTime()
+  const combined = dropDeletedSolo(
+    [...expenses.map((e) => toRow(e, userId, memberIds)), ...settlementRows].sort(
+      (a, b) => b.date.getTime() - a.date.getTime()
+    )
   );
   return applyOweFilter(combined, owe);
 }

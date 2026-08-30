@@ -30,7 +30,12 @@ export default function NewGroupForm({ onSuccess }: { onSuccess?: () => void } =
     setLoading(true);
     const cleanMembers = members
       .filter((m) => m.name.trim())
-      .map((m) => ({ name: m.name.trim(), contactId: m.contactId, baseCurrency: m.baseCurrency }));
+      .map((m) => ({
+        name: m.name.trim(),
+        contactId: m.contactId,
+        baseCurrency: m.baseCurrency,
+        email: m.email?.trim() || undefined,
+      }));
     const result = await apiPost<{ group: { id: string } }>("/api/groups", { name, members: cleanMembers });
     setLoading(false);
     if (!result.ok) {

@@ -26,7 +26,7 @@ export async function computePairwiseDebts(groupId: string): Promise<SimplifiedD
   };
 
   const expenses = await prisma.expense.findMany({
-    where: { groupId },
+    where: { groupId, deletedAt: null },
     include: { splits: true, payments: true },
   });
   for (const exp of expenses) {

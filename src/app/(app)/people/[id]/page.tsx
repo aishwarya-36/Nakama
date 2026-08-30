@@ -2,7 +2,14 @@ import { redirect, notFound } from "next/navigation";
 import Link from "next/link";
 import { getSessionFromCookies } from "@/lib/auth";
 import { prisma } from "@/lib/db";
-import { getContactBalanceByCurrency, getContactExpenses, getContactSettlements } from "@/lib/people";
+import {
+  getContactBalanceByCurrency,
+  getContactExpenses,
+  getContactSettlements,
+  getUserBalanceByCurrency,
+  getSharedUserExpenses,
+  getSharedUserSettlements,
+} from "@/lib/people";
 import ExpenseListItem from "@/components/expenses/ExpenseListItem";
 import PersonAddExpenseButton from "@/components/people/PersonAddExpenseButton";
 import PersonBalanceActions from "@/components/people/PersonBalanceActions";
@@ -18,19 +25,42 @@ export default async function PersonPage({
   const session = getSessionFromCookies();
   if (!session) redirect("/login");
 
-  const contact = await prisma.contact.findFirst({
-    where: { id: params.id, ownerId: session.userId },
-  });
-  if (!contact) notFound();
-
   const me = await prisma.user.findUnique({ where: { id: session.userId } });
   if (!me) redirect("/login");
 
-  const [byCurrency, expenses, settlements] = await Promise.all([
-    getContactBalanceByCurrency(contact.id),
-    getContactExpenses(contact.id),
-    getContactSettlements(contact.id),
-  ]);
+  // A real linked co-member (added by email — see resolveMember in
+  // src/lib/contacts.ts) has no Contact row, so it's addressed as
+  // "user:<uuid>" here instead of a bare Contact id. Unlike route handlers,
+  // page params aren't auto-decoded, so the ":" arrives as "%3A".
+  const id = decodeURIComponent(params.id);
+  const isRealUser = id.startsWith("user:");
+  const otherUserId = isRealUser ? id.slice("user:".length) : null;
+
+  const contact = isRealUser
+    ? null
+    : await prisma.contact.findFirst({ where: { id, ownerId: session.userId } });
+  const otherUser = otherUserId
+    ? await prisma.user.findFirst({
+        where: { id: otherUserId, groupMembers: { some: { group: { members: { some: { userId: session.userId } } } } } },
+      })
+    : null;
+  if (!contact && !otherUser) notFound();
+
+  const person = contact
+    ? { id: contact.id, name: contact.name, baseCurrency: contact.baseCurrency, email: contact.email, upiId: contact.upiId }
+    : { id, name: otherUser!.name, baseCurrency: otherUser!.baseCurrency, email: otherUser!.email, upiId: null };
+
+  const [byCurrency, expenses, settlements] = contact
+    ? await Promise.all([
+        getContactBalanceByCurrency(contact.id),
+        getContactExpenses(contact.id),
+        getContactSettlements(contact.id),
+      ])
+    : await Promise.all([
+        getUserBalanceByCurrency(session.userId, otherUserId!),
+        getSharedUserExpenses(session.userId, otherUserId!),
+        getSharedUserSettlements(session.userId, otherUserId!),
+      ]);
   const outstanding = Object.entries(byCurrency).filter(
     ([, amt]) => Math.abs(amt) > 0.005,
   );
@@ -44,24 +74,16 @@ export default async function PersonPage({
         ← All people
       </Link>
       <div className="mb-6 mt-1 flex items-start justify-between gap-3">
-        <h1 className="text-2xl font-semibold text-text">{contact.name}</h1>
+        <h1 className="text-2xl font-semibold text-text">{person.name}</h1>
         <div className="flex items-center gap-2">
-          <PersonSettingsButton
-            person={{
-              id: contact.id,
-              name: contact.name,
-              baseCurrency: contact.baseCurrency,
-              email: contact.email,
-              upiId: contact.upiId,
-            }}
-          />
-          <PersonShareLinkButton personId={contact.id} />
+          {contact && (
+            <>
+              <PersonSettingsButton person={{ ...person, id: contact.id }} />
+              <PersonShareLinkButton personId={contact.id} />
+            </>
+          )}
           <PersonAddExpenseButton
-            contact={{
-              id: contact.id,
-              name: contact.name,
-              baseCurrency: contact.baseCurrency,
-            }}
+            person={{ ...person, kind: contact ? "contact" : "user" }}
             userName={me.name}
           />
         </div>
@@ -90,8 +112,8 @@ export default async function PersonPage({
           </ul>
         )}
         <PersonBalanceActions
-          contactId={contact.id}
-          contactName={contact.name}
+          contactId={person.id}
+          contactName={person.name}
           defaultCurrency={me.baseCurrency}
         />
       </div>
@@ -134,6 +156,7 @@ export default async function PersonPage({
                 changedBy: h.changedBy,
                 createdAt: h.createdAt.toISOString(),
               }))}
+              deletedAt={exp.deletedAt}
             />
           ))}
           {expenses.length === 0 && (

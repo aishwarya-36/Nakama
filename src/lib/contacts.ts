@@ -5,31 +5,48 @@ export interface PersonInput {
   name: string;
   contactId?: string;
   baseCurrency?: string;
+  email?: string;
 }
 
-// Matches by name (case-insensitive) to reuse an existing contact, not just by id.
-export async function resolveContact(ownerId: string, person: PersonInput) {
-  const existing = person.contactId
-    ? await prisma.contact.findFirst({ where: { id: person.contactId, ownerId } })
-    : await findContactByNameCI(ownerId, person.name.trim());
+export type ResolvedMember =
+  | { kind: "contact"; id: string; displayName: string }
+  | { kind: "user"; id: string; displayName: string };
 
-  if (person.contactId && !existing) throw new Error("Contact not found");
-
-  if (existing) {
-    if (person.baseCurrency && person.baseCurrency !== existing.baseCurrency) {
-      return prisma.contact.update({
-        where: { id: existing.id },
-        data: { baseCurrency: person.baseCurrency },
-      });
-    }
-    return existing;
+// Resolves a person entry to either a real linked account (when `email`
+// matches an existing User — see CLAUDE.md's "claimed by a real account"
+// note) or a guest Contact, creating/reusing the Contact as needed.
+export async function resolveMember(ownerId: string, person: PersonInput): Promise<ResolvedMember> {
+  if (person.contactId) {
+    const existing = await prisma.contact.findFirst({ where: { id: person.contactId, ownerId } });
+    if (!existing) throw new Error("Contact not found");
+    return { kind: "contact", id: existing.id, displayName: existing.name };
   }
 
-  return prisma.contact.create({
+  const email = person.email?.trim().toLowerCase() || undefined;
+  if (email) {
+    const user = await prisma.user.findUnique({ where: { email } });
+    if (user) {
+      if (user.id === ownerId) throw new Error("You can't add yourself");
+      return { kind: "user", id: user.id, displayName: user.name };
+    }
+  }
+
+  const existing = await findContactByNameCI(ownerId, person.name.trim());
+  if (existing) {
+    const data: { baseCurrency?: string; email?: string } = {};
+    if (person.baseCurrency && person.baseCurrency !== existing.baseCurrency) data.baseCurrency = person.baseCurrency;
+    if (email && !existing.email) data.email = email;
+    const updated = Object.keys(data).length > 0 ? await prisma.contact.update({ where: { id: existing.id }, data }) : existing;
+    return { kind: "contact", id: updated.id, displayName: updated.name };
+  }
+
+  const created = await prisma.contact.create({
     data: {
       ownerId,
       name: person.name.trim(),
       baseCurrency: person.baseCurrency || "USD",
+      email,
     },
   });
+  return { kind: "contact", id: created.id, displayName: created.name };
 }

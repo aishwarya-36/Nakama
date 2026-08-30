@@ -76,8 +76,13 @@ export async function getUserActivity(
     ...historyEntries.map((h) => ({
       id: `history:${h.id}`,
       type: "expense" as const,
-      summary: h.summary === "Created" ? `Added expense "${h.expense.description}"` : h.summary,
-      detail: h.summary === "Created" ? undefined : h.expense.description,
+      summary:
+        h.summary === "Created"
+          ? `Added expense "${h.expense.description}"`
+          : h.summary === "Deleted"
+            ? `Deleted expense "${h.expense.description}"`
+            : h.summary,
+      detail: h.summary === "Created" || h.summary === "Deleted" ? undefined : h.expense.description,
       groupName: h.expense.group.isPersonal ? "Direct expense" : h.expense.group.name,
       timestamp: h.createdAt,
       href: groupHref(h.expense.group.id, h.expense.group.isPersonal, h.expense.group.members, userId),

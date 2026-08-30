@@ -92,7 +92,12 @@ export default function AddDirectExpenseForm({
       notes: payload.notes || undefined,
       date: payload.date,
       splitType: payload.splitType,
-      people: activePeople.map((p) => ({ name: p.name.trim(), contactId: p.contactId, baseCurrency: p.baseCurrency })),
+      people: activePeople.map((p) => ({
+        name: p.name.trim(),
+        contactId: p.contactId,
+        baseCurrency: p.baseCurrency,
+        email: p.email?.trim() || undefined,
+      })),
       payers: payload.payers,
       memberIds: payload.memberIds,
       splits: payload.splits,

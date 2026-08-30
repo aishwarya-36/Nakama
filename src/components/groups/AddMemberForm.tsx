@@ -19,6 +19,7 @@ export default function AddMemberForm({ groupId }: { groupId: string }) {
       name: person.name.trim(),
       contactId: person.contactId,
       baseCurrency: person.baseCurrency,
+      email: person.email?.trim() || undefined,
     });
     setLoading(false);
     if (!result.ok) {

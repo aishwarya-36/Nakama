@@ -21,7 +21,7 @@ export async function computeGroupBalances(groupId: string): Promise<MemberBalan
   };
 
   const expenses = await prisma.expense.findMany({
-    where: { groupId },
+    where: { groupId, deletedAt: null },
     include: { splits: true, payments: true },
   });
   for (const exp of expenses) {
@@ -63,7 +63,7 @@ export async function convertBalancesToCurrency(
 
 export async function getGroupExpenseCurrencies(groupId: string): Promise<string[]> {
   const rows = await prisma.expense.findMany({
-    where: { groupId },
+    where: { groupId, deletedAt: null },
     select: { currency: true },
     distinct: ["currency"],
   });

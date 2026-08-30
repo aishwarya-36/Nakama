@@ -46,7 +46,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   }
 
   const existing = await prisma.expense.findFirst({
-    where: { id: params.expenseId, groupId: params.id },
+    where: { id: params.expenseId, groupId: params.id, deletedAt: null },
     include: { splits: true, payments: true },
   });
   if (!existing) return NextResponse.json({ error: "Expense not found" }, { status: 404 });
@@ -143,4 +143,35 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   });
 
   return NextResponse.json({ expense });
+}
+
+// DELETE: soft delete — excluded from balance math from then on, but stays
+// visible (struck through) in listings and recorded in history.
+export async function DELETE(_req: Request, { params }: { params: { id: string; expenseId: string } }) {
+  const session = getSessionFromCookies();
+  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!(await assertMember(params.id, session.userId))) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
+  const existing = await prisma.expense.findFirst({
+    where: { id: params.expenseId, groupId: params.id, deletedAt: null },
+  });
+  if (!existing) return NextResponse.json({ error: "Expense not found" }, { status: 404 });
+
+  const actor = await prisma.groupMember.findFirst({ where: { groupId: params.id, userId: session.userId } });
+
+  await prisma.$transaction([
+    prisma.expense.update({ where: { id: params.expenseId }, data: { deletedAt: new Date() } }),
+    prisma.expenseHistory.create({
+      data: {
+        expenseId: params.expenseId,
+        changedBy: actor?.displayName || "Someone",
+        actorUserId: session.userId,
+        summary: "Deleted",
+      },
+    }),
+  ]);
+
+  return NextResponse.json({ ok: true });
 }

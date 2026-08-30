@@ -21,13 +21,26 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
   const session = getSessionFromCookies();
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const contact = await prisma.contact.findFirst({
-    where: { id: params.id, ownerId: session.userId },
-  });
-  if (!contact) return NextResponse.json({ error: "Person not found" }, { status: 404 });
+  const isRealUser = params.id.startsWith("user:");
+  const memberWhere = isRealUser
+    ? { userId: params.id.slice("user:".length) }
+    : { contactId: params.id };
+
+  if (isRealUser) {
+    const otherUserId = params.id.slice("user:".length);
+    const shared = await prisma.groupMember.findFirst({
+      where: { userId: otherUserId, group: { members: { some: { userId: session.userId } } } },
+    });
+    if (!shared) return NextResponse.json({ error: "Person not found" }, { status: 404 });
+  } else {
+    const contact = await prisma.contact.findFirst({
+      where: { id: params.id, ownerId: session.userId },
+    });
+    if (!contact) return NextResponse.json({ error: "Person not found" }, { status: 404 });
+  }
 
   const contactMemberships = await prisma.groupMember.findMany({
-    where: { contactId: contact.id },
+    where: memberWhere,
     include: { group: { select: { id: true, name: true, isPersonal: true } } },
   });
 

@@ -6,10 +6,10 @@ import AddDirectExpenseForm from "@/components/expenses/AddDirectExpenseForm";
 import { emitExpensesChanged } from "@/lib/events";
 
 export default function PersonAddExpenseButton({
-  contact,
+  person,
   userName,
 }: {
-  contact: { id: string; name: string; baseCurrency: string };
+  person: { id: string; name: string; baseCurrency: string; email: string | null; kind: "contact" | "user" };
   userName: string;
 }) {
   const [open, setOpen] = useState(false);
@@ -32,7 +32,11 @@ export default function PersonAddExpenseButton({
       <Modal open={open} onClose={() => setOpen(false)} title="Add an expense">
         <AddDirectExpenseForm
           userName={userName}
-          initialPeople={[{ name: contact.name, contactId: contact.id, baseCurrency: contact.baseCurrency }]}
+          initialPeople={[
+            person.kind === "user"
+              ? { name: person.name, email: person.email || undefined, baseCurrency: person.baseCurrency }
+              : { name: person.name, contactId: person.id, baseCurrency: person.baseCurrency },
+          ]}
           onSuccess={onAdded}
         />
       </Modal>

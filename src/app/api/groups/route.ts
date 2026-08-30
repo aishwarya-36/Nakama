@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/db";
 import { getSessionFromCookies } from "@/lib/auth";
-import { resolveContact } from "@/lib/contacts";
+import { resolveMember } from "@/lib/contacts";
 import { GROUPS_PAGE_SIZE } from "@/lib/groups";
 import { ciContains } from "@/lib/db-compat";
 
@@ -38,6 +38,7 @@ const personSchema = z.object({
   name: z.string().min(1),
   contactId: z.string().uuid().optional(),
   baseCurrency: z.string().length(3).optional(),
+  email: z.string().email().optional(),
 });
 
 const schema = z.object({
@@ -59,12 +60,22 @@ export async function POST(req: NextRequest) {
   const me = await prisma.user.findUnique({ where: { id: session.userId } });
   if (!me) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const guestData: { displayName: string; contactId: string }[] = [];
+  const guestData: { displayName: string; contactId?: string; userId?: string }[] = [];
+  const seenUserIds = new Set<string>([me.id]);
+  const seenContactIds = new Set<string>();
   for (const person of members) {
     if (!person.name.trim()) continue;
     try {
-      const contact = await resolveContact(me.id, person);
-      guestData.push({ displayName: contact.name, contactId: contact.id });
+      const resolved = await resolveMember(me.id, person);
+      if (resolved.kind === "user") {
+        if (seenUserIds.has(resolved.id)) continue;
+        seenUserIds.add(resolved.id);
+        guestData.push({ displayName: resolved.displayName, userId: resolved.id });
+      } else {
+        if (seenContactIds.has(resolved.id)) continue;
+        seenContactIds.add(resolved.id);
+        guestData.push({ displayName: resolved.displayName, contactId: resolved.id });
+      }
     } catch {
       return NextResponse.json({ error: "One of the selected people is invalid" }, { status: 400 });
     }

@@ -5,27 +5,45 @@ import CurrencySelect from "@/components/ui/CurrencySelect";
 import CategoryPicker from "@/components/expenses/CategoryPicker";
 import AttachmentPicker from "@/components/expenses/AttachmentPicker";
 import { useToast } from "@/components/ui/ToastProvider";
-import { apiPost } from "@/lib/api";
+import { apiPatch, apiPost } from "@/lib/api";
 
 function todayISODate() {
   return new Date().toISOString().slice(0, 10);
 }
 
+interface EditingSpend {
+  groupId: string;
+  expenseId: string;
+  selfMemberId: string;
+  initial: {
+    description: string;
+    amount: number;
+    currency: string;
+    category: string;
+    notes: string;
+    date: string; // yyyy-mm-dd
+  };
+}
+
 export default function AddMySpendForm({
   onSuccess,
   defaultCurrency = "USD",
+  editing,
 }: {
   onSuccess?: () => void;
   defaultCurrency?: string;
+  // When set, this is a truly solo personal spend (no one else on the
+  // expense) being edited in place, rather than a new one being created.
+  editing?: EditingSpend;
 }) {
   const router = useRouter();
   const toast = useToast();
-  const [description, setDescription] = useState("");
-  const [amount, setAmount] = useState("");
-  const [currency, setCurrency] = useState(defaultCurrency);
-  const [category, setCategory] = useState("");
-  const [notes, setNotes] = useState("");
-  const [date, setDate] = useState(todayISODate());
+  const [description, setDescription] = useState(editing?.initial.description ?? "");
+  const [amount, setAmount] = useState(editing ? String(editing.initial.amount) : "");
+  const [currency, setCurrency] = useState(editing?.initial.currency ?? defaultCurrency);
+  const [category, setCategory] = useState(editing?.initial.category ?? "");
+  const [notes, setNotes] = useState(editing?.initial.notes ?? "");
+  const [date, setDate] = useState(editing?.initial.date ?? todayISODate());
   const [attachment, setAttachment] = useState<File | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -42,31 +60,45 @@ export default function AddMySpendForm({
     }
 
     setLoading(true);
-    const result = await apiPost("/api/expenses", {
-      description: description.trim(),
-      amount: amt,
-      currency,
-      category: category || undefined,
-      notes: notes.trim() || undefined,
-      date: new Date(date + "T00:00:00.000Z").toISOString(),
-      splitType: "EQUAL",
-      people: [],
-      payers: [{ ref: "me", value: amt }],
-      memberIds: ["me"],
-    });
+    const result = editing
+      ? await apiPatch(`/api/groups/${editing.groupId}/expenses/${editing.expenseId}`, {
+          description: description.trim(),
+          amount: amt,
+          currency,
+          category: category || undefined,
+          notes: notes.trim() || undefined,
+          date: new Date(date + "T00:00:00.000Z").toISOString(),
+          splitType: "EQUAL",
+          payers: [{ groupMemberId: editing.selfMemberId, value: amt }],
+          memberIds: [editing.selfMemberId],
+        })
+      : await apiPost("/api/expenses", {
+          description: description.trim(),
+          amount: amt,
+          currency,
+          category: category || undefined,
+          notes: notes.trim() || undefined,
+          date: new Date(date + "T00:00:00.000Z").toISOString(),
+          splitType: "EQUAL",
+          people: [],
+          payers: [{ ref: "me", value: amt }],
+          memberIds: ["me"],
+        });
     setLoading(false);
     if (!result.ok) {
-      toast.error(result.error || "Couldn't add expense");
+      toast.error(result.error || (editing ? "Couldn't save changes" : "Couldn't add expense"));
       return;
     }
 
-    setDescription("");
-    setAmount("");
-    setCategory("");
-    setNotes("");
-    setDate(todayISODate());
-    setAttachment(null);
-    toast.success("Expense added");
+    if (!editing) {
+      setDescription("");
+      setAmount("");
+      setCategory("");
+      setNotes("");
+      setDate(todayISODate());
+      setAttachment(null);
+    }
+    toast.success(editing ? "Expense updated" : "Expense added");
     router.refresh();
     onSuccess?.();
   }
@@ -136,7 +168,7 @@ export default function AddMySpendForm({
           disabled={loading}
           className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-contrast hover:bg-primary-hover disabled:opacity-60"
         >
-          {loading ? "Adding…" : "Add spend"}
+          {loading ? (editing ? "Saving…" : "Adding…") : editing ? "Save changes" : "Add spend"}
         </button>
       </div>
     </form>

@@ -2,12 +2,13 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/db";
 import { getSessionFromCookies } from "@/lib/auth";
-import { resolveContact } from "@/lib/contacts";
+import { resolveMember } from "@/lib/contacts";
 
 const schema = z.object({
   name: z.string().min(1),
   contactId: z.string().uuid().optional(),
   baseCurrency: z.string().length(3).optional(),
+  email: z.string().email().optional(),
 });
 
 export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
@@ -24,22 +25,29 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     return NextResponse.json({ error: parsed.error.issues[0].message }, { status: 400 });
   }
 
-  let contact;
+  let resolved;
   try {
-    contact = await resolveContact(session.userId, parsed.data);
-  } catch {
-    return NextResponse.json({ error: "Invalid contact" }, { status: 400 });
+    resolved = await resolveMember(session.userId, parsed.data);
+  } catch (e) {
+    return NextResponse.json({ error: e instanceof Error ? e.message : "Invalid contact" }, { status: 400 });
   }
 
   const existing = await prisma.groupMember.findFirst({
-    where: { groupId: params.id, contactId: contact.id },
+    where: {
+      groupId: params.id,
+      ...(resolved.kind === "user" ? { userId: resolved.id } : { contactId: resolved.id }),
+    },
   });
   if (existing) {
-    return NextResponse.json({ error: `${contact.name} is already in this group` }, { status: 409 });
+    return NextResponse.json({ error: `${resolved.displayName} is already in this group` }, { status: 409 });
   }
 
   const member = await prisma.groupMember.create({
-    data: { groupId: params.id, displayName: contact.name, contactId: contact.id },
+    data: {
+      groupId: params.id,
+      displayName: resolved.displayName,
+      ...(resolved.kind === "user" ? { userId: resolved.id } : { contactId: resolved.id }),
+    },
   });
   return NextResponse.json({ member }, { status: 201 });
 }

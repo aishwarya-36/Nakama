@@ -83,7 +83,7 @@ export async function computeUserOverview(userId: string, baseCurrency: string) 
     perGroup.push({ groupId: m.groupId, groupName: m.group.name, net: groupNet });
 
     const expenses = await prisma.expense.findMany({
-      where: { groupId: m.groupId },
+      where: { groupId: m.groupId, deletedAt: null },
       include: {
         splits: { where: { groupMemberId: m.id } },
         payments: { where: { groupMemberId: m.id } },
@@ -153,7 +153,7 @@ export async function computeMonthlySpending(userId: string, baseCurrency: strin
   const memberIds = myMemberships.map((m) => m.id);
 
   const splits = await prisma.expenseSplit.findMany({
-    where: { groupMemberId: { in: memberIds }, expense: { date: { gte: since } } },
+    where: { groupMemberId: { in: memberIds }, expense: { date: { gte: since }, deletedAt: null } },
     include: { expense: { select: { date: true, currency: true, category: true } } },
   });
 

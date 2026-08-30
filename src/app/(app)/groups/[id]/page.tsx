@@ -114,6 +114,7 @@ export default async function GroupPage({ params }: { params: { id: string } }) 
                 changedBy: h.changedBy,
                 createdAt: h.createdAt.toISOString(),
               }))}
+              deletedAt={exp.deletedAt}
             />
           ))}
           {group.expenses.length === 0 && (

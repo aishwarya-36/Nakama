@@ -2,6 +2,8 @@
 import { useEffect, useState } from "react";
 import Modal from "@/components/ui/Modal";
 import ExpenseForm from "@/components/expenses/ExpenseForm";
+import AddMySpendForm from "@/components/expenses/AddMySpendForm";
+import DeleteExpenseButton from "@/components/expenses/DeleteExpenseButton";
 import { ExpensePayload, ExpenseHistoryEntry } from "@/components/expenses/ExpenseTabsForm";
 import type { Member } from "@/lib/types";
 
@@ -12,6 +14,7 @@ interface ExpenseDetail {
   category: string | null;
   notes: string | null;
   date: string;
+  deletedAt: string | null;
   payments: { groupMemberId: string; amount: string | number }[];
   splits: { groupMemberId: string; amount: string | number }[];
   history: { summary: string; changedBy: string; createdAt: string }[];
@@ -36,6 +39,8 @@ export default function ExpenseEditModal({
   const [initial, setInitial] = useState<ExpensePayload | null>(null);
   const [historyEntries, setHistoryEntries] = useState<ExpenseHistoryEntry[]>([]);
   const [withNames, setWithNames] = useState<string[] | null>(null);
+  const [soloSpend, setSoloSpend] = useState<{ selfMemberId: string } | null>(null);
+  const [deleted, setDeleted] = useState(false);
 
   useEffect(() => {
     if (!open || !groupId || !expenseId) return;
@@ -59,10 +64,17 @@ export default function ExpenseEditModal({
           return;
         }
         const exp = data.expense;
-        setMembers(data.members || []);
+        const groupMembers = data.members || [];
+        setMembers(groupMembers);
         setWithNames(
-          data.group?.isPersonal
-            ? (data.members || []).filter((m) => m.id !== data.selfMemberId).map((m) => m.displayName)
+          data.group?.isPersonal ? groupMembers.filter((m) => m.id !== data.selfMemberId).map((m) => m.displayName) : null
+        );
+        // A "my spend" — a personal-group expense with no one else on it — was
+        // created with the lightweight solo form and should be edited with it
+        // too, not the multi-tab group-expense form (see AddMySpendForm).
+        setSoloSpend(
+          data.group?.isPersonal && groupMembers.length === 1 && data.selfMemberId
+            ? { selfMemberId: data.selfMemberId }
             : null
         );
         setInitial({
@@ -79,6 +91,7 @@ export default function ExpenseEditModal({
         setHistoryEntries(
           exp.history.map((h) => ({ summary: h.summary, changedBy: h.changedBy, createdAt: h.createdAt }))
         );
+        setDeleted(!!exp.deletedAt);
         }
       )
       .catch(() => !cancelled && setError("Couldn't load expense"))
@@ -89,10 +102,47 @@ export default function ExpenseEditModal({
   }, [open, groupId, expenseId]);
 
   return (
-    <Modal open={open} onClose={onClose} title="Edit expense">
+    <Modal
+      open={open}
+      onClose={onClose}
+      title="Edit expense"
+      headerActions={
+        !loading && !error && !deleted ? (
+          <DeleteExpenseButton
+            groupId={groupId}
+            expenseId={expenseId}
+            onDeleted={() => {
+              onSaved?.();
+              onClose();
+            }}
+          />
+        ) : undefined
+      }
+    >
       {loading && <p className="py-4 text-center text-sm text-text-faint">Loading…</p>}
       {!loading && error && <p className="py-4 text-center text-sm text-error">{error}</p>}
-      {!loading && !error && initial && (
+      {!loading && !error && initial && soloSpend && (
+        <AddMySpendForm
+          editing={{
+            groupId,
+            expenseId,
+            selfMemberId: soloSpend.selfMemberId,
+            initial: {
+              description: initial.description,
+              amount: initial.amount,
+              currency: initial.currency,
+              category: initial.category,
+              notes: initial.notes,
+              date: initial.date,
+            },
+          }}
+          onSuccess={() => {
+            onSaved?.();
+            onClose();
+          }}
+        />
+      )}
+      {!loading && !error && initial && !soloSpend && (
         <ExpenseForm
           groupId={groupId}
           expenseId={expenseId}

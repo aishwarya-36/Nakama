@@ -5,6 +5,7 @@ export interface PersonValue {
   name: string;
   contactId?: string;
   baseCurrency: string;
+  email?: string;
 }
 
 interface Contact {
@@ -55,40 +56,55 @@ export default function PersonPicker({
   }
 
   function onNameChange(name: string) {
-    onChange({ name, contactId: undefined, baseCurrency: value.baseCurrency });
+    onChange({ ...value, name, contactId: undefined });
     setOpen(true);
+  }
+
+  function onEmailChange(email: string) {
+    onChange({ ...value, email });
   }
 
   return (
     <div className="flex gap-2">
-      <div ref={boxRef} className="relative w-full max-w-xs">
-        <input
-          value={value.name}
-          onChange={(e) => onNameChange(e.target.value)}
-          onFocus={() => setOpen(true)}
-          placeholder={placeholder || "Name"}
-          className="w-full rounded-md border border-border bg-surface px-3 py-2 text-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary/40"
-        />
-        {value.contactId && (
-          <span className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-primary">linked</span>
-        )}
-        {open && suggestions.length > 0 && (
-          <div className="absolute z-10 mt-1 w-full rounded-md border border-border bg-surface shadow-md">
-            {suggestions.map((c) => (
-              <button
-                type="button"
-                key={c.id}
-                onClick={() => selectContact(c)}
-                className="flex w-full flex-col items-start px-3 py-2 text-left text-sm hover:bg-surface-secondary"
-              >
-                <span className="text-text">{c.name}</span>
-                <span className="text-xs text-text-faint">
-                  {c.groupNames.length > 0 ? `In: ${c.groupNames.join(", ")}` : "Not in any group yet"} ·{" "}
-                  {c.baseCurrency}
-                </span>
-              </button>
-            ))}
-          </div>
+      <div className="w-full max-w-xs space-y-1">
+        <div ref={boxRef} className="relative">
+          <input
+            value={value.name}
+            onChange={(e) => onNameChange(e.target.value)}
+            onFocus={() => setOpen(true)}
+            placeholder={placeholder || "Name"}
+            className="w-full rounded-md border border-border bg-surface px-3 py-2 text-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary/40"
+          />
+          {value.contactId && (
+            <span className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-primary">linked</span>
+          )}
+          {open && suggestions.length > 0 && (
+            <div className="absolute z-10 mt-1 w-full rounded-md border border-border bg-surface shadow-md">
+              {suggestions.map((c) => (
+                <button
+                  type="button"
+                  key={c.id}
+                  onClick={() => selectContact(c)}
+                  className="flex w-full flex-col items-start px-3 py-2 text-left text-sm hover:bg-surface-secondary"
+                >
+                  <span className="text-text">{c.name}</span>
+                  <span className="text-xs text-text-faint">
+                    {c.groupNames.length > 0 ? `In: ${c.groupNames.join(", ")}` : "Not in any group yet"} ·{" "}
+                    {c.baseCurrency}
+                  </span>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+        {!value.contactId && (
+          <input
+            type="email"
+            value={value.email || ""}
+            onChange={(e) => onEmailChange(e.target.value)}
+            placeholder="Email (optional) — links to their account if they have one"
+            className="w-full rounded-md border border-border bg-surface px-3 py-1.5 text-xs outline-none focus:border-primary focus:ring-1 focus:ring-primary/40"
+          />
         )}
       </div>
       {onRemove && (

@@ -7,6 +7,10 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
   const session = getSessionFromCookies();
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
+  if (params.id.startsWith("user:")) {
+    return NextResponse.json({ error: "Not available for a linked account" }, { status: 400 });
+  }
+
   const contact = await prisma.contact.findFirst({
     where: { id: params.id, ownerId: session.userId },
   });

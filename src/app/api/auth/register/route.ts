@@ -8,6 +8,7 @@ const schema = z.object({
   name: z.string().min(1),
   email: z.string().email(),
   password: z.string().min(8),
+  baseCurrency: z.string().length(3).optional(),
 });
 
 export async function POST(req: NextRequest) {
@@ -19,7 +20,7 @@ export async function POST(req: NextRequest) {
   if (!parsed.success) {
     return NextResponse.json({ error: parsed.error.issues[0].message }, { status: 400 });
   }
-  const { name, email, password } = parsed.data;
+  const { name, email, password, baseCurrency } = parsed.data;
 
   const existing = await prisma.user.findUnique({ where: { email } });
   if (existing) {
@@ -28,7 +29,7 @@ export async function POST(req: NextRequest) {
 
   const passwordHash = await hashPassword(password);
   const user = await prisma.user.create({
-    data: { name, email, passwordHash },
+    data: { name, email, passwordHash, baseCurrency: baseCurrency || "USD" },
   });
 
   const token = signSession({ userId: user.id, email: user.email });

@@ -5,6 +5,20 @@ import { ciContains } from "./db-compat";
 
 export async function getContactBalanceByCurrency(contactId: string): Promise<Record<string, number>> {
   const members = await prisma.groupMember.findMany({ where: { contactId } });
+  return sumBalanceForMembers(members);
+}
+
+// Scoped to groups the viewer is also in — a real linked user can belong to
+// unrelated groups that have nothing to do with the viewer, which must
+// never leak into "balance with this person."
+export async function getUserBalanceByCurrency(viewerId: string, otherUserId: string): Promise<Record<string, number>> {
+  const members = await prisma.groupMember.findMany({
+    where: { userId: otherUserId, group: { members: { some: { userId: viewerId } } } },
+  });
+  return sumBalanceForMembers(members);
+}
+
+async function sumBalanceForMembers(members: { id: string; groupId: string }[]): Promise<Record<string, number>> {
   const totals: Record<string, number> = {};
   for (const m of members) {
     const balances = await computeGroupBalances(m.groupId);
@@ -27,6 +41,7 @@ export interface ContactExpenseRow {
   notes: string | null;
   currency: string;
   amount: number;
+  deletedAt: Date | null;
   paidByLabel: string;
   members: { id: string; displayName: string }[];
   payments: { groupMemberId: string; amount: number }[];
@@ -34,14 +49,8 @@ export interface ContactExpenseRow {
   history: { summary: string; changedBy: string; createdAt: Date }[];
 }
 
-export async function getContactExpenses(contactId: string): Promise<ContactExpenseRow[]> {
-  const memberships = await prisma.groupMember.findMany({
-    where: { contactId },
-    select: { id: true, groupId: true },
-  });
-  if (memberships.length === 0) return [];
-  const memberIds = memberships.map((m) => m.id);
-  const groupIds = [...new Set(memberships.map((m) => m.groupId))];
+async function getExpensesForMemberships(memberIds: string[], groupIds: string[]): Promise<ContactExpenseRow[]> {
+  if (memberIds.length === 0) return [];
 
   const expenses = await prisma.expense.findMany({
     where: {
@@ -70,6 +79,7 @@ export async function getContactExpenses(contactId: string): Promise<ContactExpe
     notes: e.notes,
     currency: e.currency,
     amount: Number(e.amount),
+    deletedAt: e.deletedAt,
     paidByLabel:
       e.payments.length === 0
         ? "—"
@@ -83,6 +93,28 @@ export async function getContactExpenses(contactId: string): Promise<ContactExpe
   }));
 }
 
+export async function getContactExpenses(contactId: string): Promise<ContactExpenseRow[]> {
+  const memberships = await prisma.groupMember.findMany({
+    where: { contactId },
+    select: { id: true, groupId: true },
+  });
+  return getExpensesForMemberships(
+    memberships.map((m) => m.id),
+    [...new Set(memberships.map((m) => m.groupId))]
+  );
+}
+
+export async function getSharedUserExpenses(viewerId: string, otherUserId: string): Promise<ContactExpenseRow[]> {
+  const memberships = await prisma.groupMember.findMany({
+    where: { userId: otherUserId, group: { members: { some: { userId: viewerId } } } },
+    select: { id: true, groupId: true },
+  });
+  return getExpensesForMemberships(
+    memberships.map((m) => m.id),
+    [...new Set(memberships.map((m) => m.groupId))]
+  );
+}
+
 export interface ContactSettlementRow {
   id: string;
   date: Date;
@@ -94,10 +126,8 @@ export interface ContactSettlementRow {
   groupName: string;
 }
 
-export async function getContactSettlements(contactId: string): Promise<ContactSettlementRow[]> {
-  const memberships = await prisma.groupMember.findMany({ where: { contactId }, select: { id: true } });
-  if (memberships.length === 0) return [];
-  const memberIds = memberships.map((m) => m.id);
+async function getSettlementsForMemberIds(memberIds: string[]): Promise<ContactSettlementRow[]> {
+  if (memberIds.length === 0) return [];
 
   const settlements = await prisma.settlement.findMany({
     where: { OR: [{ fromMemberId: { in: memberIds } }, { toMemberId: { in: memberIds } }] },
@@ -121,10 +151,24 @@ export async function getContactSettlements(contactId: string): Promise<ContactS
   }));
 }
 
+export async function getContactSettlements(contactId: string): Promise<ContactSettlementRow[]> {
+  const memberships = await prisma.groupMember.findMany({ where: { contactId }, select: { id: true } });
+  return getSettlementsForMemberIds(memberships.map((m) => m.id));
+}
+
+export async function getSharedUserSettlements(viewerId: string, otherUserId: string): Promise<ContactSettlementRow[]> {
+  const memberships = await prisma.groupMember.findMany({
+    where: { userId: otherUserId, group: { members: { some: { userId: viewerId } } } },
+    select: { id: true },
+  });
+  return getSettlementsForMemberIds(memberships.map((m) => m.id));
+}
+
 export const PEOPLE_PAGE_SIZE = 15;
 
 export interface PersonSummary {
   id: string;
+  kind: "contact" | "user";
   name: string;
   baseCurrency: string;
   email: string | null;
@@ -135,48 +179,89 @@ export interface PersonSummary {
   skippedCurrencies: string[];
 }
 
+async function toPersonSummary(
+  kind: "contact" | "user",
+  id: string,
+  name: string,
+  baseCurrency: string,
+  email: string | null,
+  upiId: string | null,
+  groupNames: string[],
+  byCurrency: Record<string, number>,
+  targetCurrency: string
+): Promise<PersonSummary> {
+  let total = 0;
+  const skipped: string[] = [];
+  for (const [currency, amount] of Object.entries(byCurrency)) {
+    const converted = await convert(amount, currency, targetCurrency);
+    if (converted === null) skipped.push(currency);
+    else total += converted;
+  }
+  return { id, kind, name, baseCurrency, email, upiId, groupNames, total, byCurrency, skippedCurrencies: skipped };
+}
+
 export async function getPeopleWithBalances(
   userId: string,
   targetCurrency: string,
   opts: { q?: string; skip?: number; take?: number } = {}
 ): Promise<{ people: PersonSummary[]; total: number }> {
-  const where = {
-    ownerId: userId,
-    ...(opts.q ? { name: ciContains(opts.q) } : {}),
-  };
+  const contacts = await prisma.contact.findMany({
+    where: { ownerId: userId, ...(opts.q ? { name: ciContains(opts.q) } : {}) },
+    include: { groupMembers: { include: { group: { select: { name: true, isPersonal: true } } } } },
+  });
 
-  const [total, contacts] = await Promise.all([
-    prisma.contact.count({ where }),
-    prisma.contact.findMany({
-      where,
-      include: { groupMembers: { include: { group: { select: { name: true, isPersonal: true } } } } },
-      orderBy: { name: "asc" },
-      skip: opts.skip,
-      take: opts.take,
-    }),
-  ]);
+  const linkedMembers = await prisma.groupMember.findMany({
+    where: {
+      userId: { not: null },
+      NOT: { userId },
+      group: { members: { some: { userId } } },
+    },
+    distinct: ["userId"],
+    include: { user: true },
+  });
+  const linkedUsers = linkedMembers
+    .map((m) => m.user!)
+    .filter((u) => !opts.q || u.name.toLowerCase().includes(opts.q.toLowerCase()));
 
-  const results: PersonSummary[] = [];
-  for (const c of contacts) {
-    const byCurrency = await getContactBalanceByCurrency(c.id);
-    let total = 0;
-    const skipped: string[] = [];
-    for (const [currency, amount] of Object.entries(byCurrency)) {
-      const converted = await convert(amount, currency, targetCurrency);
-      if (converted === null) skipped.push(currency);
-      else total += converted;
-    }
-    results.push({
-      id: c.id,
-      name: c.name,
-      baseCurrency: c.baseCurrency,
-      email: c.email,
-      upiId: c.upiId,
-      groupNames: c.groupMembers.filter((gm) => !gm.group.isPersonal).map((gm) => gm.group.name),
-      total,
-      byCurrency,
-      skippedCurrencies: skipped,
-    });
-  }
-  return { people: results, total };
+  const contactSummaries = await Promise.all(
+    contacts.map(async (c) =>
+      toPersonSummary(
+        "contact",
+        c.id,
+        c.name,
+        c.baseCurrency,
+        c.email,
+        c.upiId,
+        c.groupMembers.filter((gm) => !gm.group.isPersonal).map((gm) => gm.group.name),
+        await getContactBalanceByCurrency(c.id),
+        targetCurrency
+      )
+    )
+  );
+
+  const userSummaries = await Promise.all(
+    linkedUsers.map(async (u) => {
+      const memberships = await prisma.groupMember.findMany({
+        where: { userId: u.id, group: { members: { some: { userId } } } },
+        include: { group: { select: { name: true, isPersonal: true } } },
+      });
+      return toPersonSummary(
+        "user",
+        `user:${u.id}`,
+        u.name,
+        u.baseCurrency,
+        u.email,
+        null,
+        memberships.filter((m) => !m.group.isPersonal).map((m) => m.group.name),
+        await getUserBalanceByCurrency(userId, u.id),
+        targetCurrency
+      );
+    })
+  );
+
+  const all = [...contactSummaries, ...userSummaries].sort((a, b) => a.name.localeCompare(b.name));
+  const total = all.length;
+  const skip = opts.skip ?? 0;
+  const take = opts.take ?? all.length;
+  return { people: all.slice(skip, skip + take), total };
 }

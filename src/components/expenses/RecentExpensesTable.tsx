@@ -15,6 +15,7 @@ interface Row {
   groupId: string;
   groupName: string;
   isPersonal: boolean;
+  deletedAt: string | null;
   paidByName: string;
   yourShare: number;
   yourPaid: number;
@@ -178,22 +179,36 @@ export default function RecentExpensesTable({
             </tr>
           </thead>
           <tbody className="divide-y divide-border">
-            {rows.map((r) => (
+            {rows.map((r) => {
+              const isDeleted = !!r.deletedAt;
+              return (
               <tr
                 key={r.id}
-                onClick={r.type === "expense" ? () => setEditing({ groupId: r.groupId, expenseId: r.id }) : undefined}
-                className={r.type === "expense" ? "cursor-pointer hover:bg-surface-secondary" : ""}
+                onClick={
+                  r.type === "expense" && !isDeleted
+                    ? () => setEditing({ groupId: r.groupId, expenseId: r.id })
+                    : undefined
+                }
+                className={
+                  isDeleted
+                    ? "opacity-60"
+                    : r.type === "expense"
+                      ? "cursor-pointer hover:bg-surface-secondary"
+                      : ""
+                }
               >
-                <td className="whitespace-nowrap py-2 pr-3 text-text-muted">
+                <td className={`whitespace-nowrap py-2 pr-3 text-text-muted ${isDeleted ? "line-through" : ""}`}>
                   {new Date(r.date).toLocaleDateString()}
                 </td>
-                <td className="py-2 pr-3 text-text">{r.description}</td>
-                <td className="py-2 pr-3 text-text-muted">{r.groupName}</td>
-                {showPaidBy && <td className="py-2 pr-3 text-text-muted">{r.paidByName}</td>}
-                <td className="py-2 pr-3 text-right text-text-muted">
+                <td className={`py-2 pr-3 text-text ${isDeleted ? "line-through" : ""}`}>{r.description}</td>
+                <td className={`py-2 pr-3 text-text-muted ${isDeleted ? "line-through" : ""}`}>{r.groupName}</td>
+                {showPaidBy && (
+                  <td className={`py-2 pr-3 text-text-muted ${isDeleted ? "line-through" : ""}`}>{r.paidByName}</td>
+                )}
+                <td className={`py-2 pr-3 text-right text-text-muted ${isDeleted ? "line-through" : ""}`}>
                   {r.yourShare.toFixed(2)} {r.currency}
                 </td>
-                <td className="py-2 pr-3 text-right font-medium text-text">
+                <td className={`py-2 pr-3 text-right font-medium text-text ${isDeleted ? "line-through" : ""}`}>
                   {(showPaidBy ? r.amount : r.yourPaid).toFixed(2)} {r.currency}
                 </td>
                 {showOweFilter && (
@@ -212,7 +227,8 @@ export default function RecentExpensesTable({
                   </td>
                 )}
               </tr>
-            ))}
+              );
+            })}
           </tbody>
         </table>
         {!loading && rows.length === 0 && (

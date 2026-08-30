@@ -10,6 +10,7 @@ import { apiDelete } from "@/lib/api";
 
 interface Person {
   id: string;
+  kind: "contact" | "user";
   name: string;
   baseCurrency: string;
   email: string | null;
@@ -142,25 +143,27 @@ export default function PeopleList({
                       </ul>
                     )}
                   </div>
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      remove(p.id, p.name);
-                    }}
-                    disabled={removingId === p.id}
-                    title="Remove"
-                    aria-label={`Remove ${p.name}`}
-                    className="rounded-md p-1.5 text-text-faint hover:bg-error-tint hover:text-error disabled:opacity-60"
-                  >
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <path d="M3 6h18" />
-                      <path d="M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2" />
-                      <path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6" />
-                      <path d="M10 11v6M14 11v6" />
-                    </svg>
-                  </button>
+                  {p.kind === "contact" && (
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        remove(p.id, p.name);
+                      }}
+                      disabled={removingId === p.id}
+                      title="Remove"
+                      aria-label={`Remove ${p.name}`}
+                      className="rounded-md p-1.5 text-text-faint hover:bg-error-tint hover:text-error disabled:opacity-60"
+                    >
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <path d="M3 6h18" />
+                        <path d="M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2" />
+                        <path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6" />
+                        <path d="M10 11v6M14 11v6" />
+                      </svg>
+                    </button>
+                  )}
                 </div>
               </div>
               {p.skippedCurrencies.length > 0 && (

@@ -3,12 +3,14 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import AuthBackground from "@/components/layout/AuthBackground";
+import CurrencySelect from "@/components/ui/CurrencySelect";
 
 export default function RegisterPage() {
   const router = useRouter();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [baseCurrency, setBaseCurrency] = useState("USD");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -19,7 +21,7 @@ export default function RegisterPage() {
     const res = await fetch("/api/auth/register", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name, email, password }),
+      body: JSON.stringify({ name, email, password, baseCurrency }),
     });
     setLoading(false);
     if (!res.ok) {
@@ -70,6 +72,13 @@ export default function RegisterPage() {
               className="mt-1 w-full rounded-md border border-border bg-surface px-3 py-2 text-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary/40"
             />
             <p className="mt-1 text-xs text-text-faint">At least 8 characters.</p>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-text">Default currency</label>
+            <div className="mt-1">
+              <CurrencySelect value={baseCurrency} onChange={setBaseCurrency} />
+            </div>
+            <p className="mt-1 text-xs text-text-faint">Used to show totals across groups. You can change this later.</p>
           </div>
           {error && <p className="text-sm text-error">{error}</p>}
           <button
