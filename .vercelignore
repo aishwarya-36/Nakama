@@ -1,0 +1,5 @@
+release
+electron
+.next
+node_modules
+prisma/offline/*.db

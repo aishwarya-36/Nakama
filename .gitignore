@@ -6,3 +6,6 @@ prisma/offline/*.db
 prisma/offline/*.db-journal
 /release
 .neon
+.vercel
+.env*
+!.env.example
