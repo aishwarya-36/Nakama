@@ -1,0 +1,51 @@
+name: Release Windows build
+
+# Push a tag like v1.2.3 (after bumping "version" in package.json to match)
+# to build the Windows installer and attach it as a draft GitHub Release.
+# workflow_dispatch lets you trigger the same build manually without a tag,
+# for testing the pipeline itself (it still won't publish anywhere — see
+# the `if` guard below).
+on:
+  push:
+    tags:
+      - "v*.*.*"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    env:
+      # prisma generate / next build never open a real DB connection, but
+      # the schemas reference these via env() so they must at least exist.
+      DATABASE_URL: "postgresql://user:pass@localhost:5432/nakama"
+      OFFLINE_DATABASE_URL: "file:./dev.db"
+      JWT_SECRET: "ci-build-only-secret"
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - run: npm ci
+
+      - run: npm run electron:prepare
+
+      - name: Build and publish (tag push only)
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: npx electron-builder --win nsis --publish always
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build only (manual run, no tag)
+        if: ${{ !startsWith(github.ref, 'refs/tags/v') }}
+        run: npx electron-builder --win nsis --publish never
+
+      - uses: actions/upload-artifact@v4
+        if: ${{ !startsWith(github.ref, 'refs/tags/v') }}
+        with:
+          name: nakama-windows-installer
+          path: release/*.exe

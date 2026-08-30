@@ -1,5 +1,6 @@
 generator client {
   provider = "prisma-client-js"
+  output   = "../../node_modules/.prisma/online-client"
 }
 
 datasource db {
@@ -74,13 +75,9 @@ model GroupMember {
   @@index([contactId]) // lookups across every group a contact belongs to
 }
 
-enum SplitType {
-  EQUAL
-  EXACT
-  PERCENTAGE
-  SHARES
-}
-
+// EQUAL | EXACT | PERCENTAGE | SHARES — kept as a plain string (see
+// src/lib/splits.ts) rather than a Prisma enum, so this type stays aligned
+// with prisma/offline/schema.prisma (SQLite has no native enum support).
 model Expense {
   id          String           @id @default(uuid())
   groupId     String
@@ -90,7 +87,7 @@ model Expense {
   currency    String
   category    String?
   notes       String?
-  splitType   SplitType        @default(EQUAL)
+  splitType   String           @default("EQUAL")
   date        DateTime         @default(now()) // invoice date, not when it was entered
   createdAt   DateTime         @default(now())
   payments    ExpensePayment[]
@@ -163,10 +160,12 @@ model Settlement {
 
 // A fetched FX snapshot (rates already merged with the static fallback
 // table for currencies frankfurter.dev doesn't cover). One row per
-// fetch; the latest by fetchedAt is authoritative.
+// fetch; the latest by fetchedAt is authoritative. `rates` is JSON-encoded
+// text (see src/lib/currency.ts) rather than Prisma's Json type, to stay
+// aligned with prisma/offline/schema.prisma (SQLite has no JSON column).
 model ExchangeRateSnapshot {
   id        String   @id @default(uuid())
-  rates     Json
+  rates     String
   fetchedAt DateTime @default(now())
 
   @@index([fetchedAt])

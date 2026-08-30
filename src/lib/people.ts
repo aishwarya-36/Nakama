@@ -1,6 +1,7 @@
 import { prisma } from "./db";
 import { convert } from "./currency";
 import { computeGroupBalances } from "./balances";
+import { ciContains } from "./db-compat";
 
 export async function getContactBalanceByCurrency(contactId: string): Promise<Record<string, number>> {
   const members = await prisma.groupMember.findMany({ where: { contactId } });
@@ -141,7 +142,7 @@ export async function getPeopleWithBalances(
 ): Promise<{ people: PersonSummary[]; total: number }> {
   const where = {
     ownerId: userId,
-    ...(opts.q ? { name: { contains: opts.q, mode: "insensitive" as const } } : {}),
+    ...(opts.q ? { name: ciContains(opts.q) } : {}),
   };
 
   const [total, contacts] = await Promise.all([

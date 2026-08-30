@@ -65,7 +65,7 @@ export async function getLatestSnapshot() {
 export async function refreshRates() {
   const live = await fetchLiveRates();
   const rates = { ...STATIC_RATES_TO_USD, ...live };
-  return prisma.exchangeRateSnapshot.create({ data: { rates } });
+  return prisma.exchangeRateSnapshot.create({ data: { rates: JSON.stringify(rates) } });
 }
 
 function isNewCalendarMonth(fetchedAt: Date): boolean {
@@ -80,13 +80,13 @@ export async function getRates(): Promise<Record<string, number>> {
   if (!snapshot || isNewCalendarMonth(snapshot.fetchedAt)) {
     try {
       const fresh = await refreshRates();
-      return fresh.rates as Record<string, number>;
+      return JSON.parse(fresh.rates);
     } catch {
       // Network hiccup — fall back to whatever we have rather than breaking conversions.
-      return (snapshot?.rates as Record<string, number>) || STATIC_RATES_TO_USD;
+      return snapshot ? JSON.parse(snapshot.rates) : STATIC_RATES_TO_USD;
     }
   }
-  return snapshot.rates as Record<string, number>;
+  return JSON.parse(snapshot.rates);
 }
 
 export function isConvertible(rates: Record<string, number>, code: string) {

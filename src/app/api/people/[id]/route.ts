@@ -3,6 +3,7 @@ import { z } from "zod";
 import { prisma } from "@/lib/db";
 import { getSessionFromCookies } from "@/lib/auth";
 import { getContactBalanceByCurrency } from "@/lib/people";
+import { findContactByNameCI } from "@/lib/db-compat";
 
 const patchSchema = z.object({
   name: z.string().min(1),
@@ -26,9 +27,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   }
 
   const name = parsed.data.name.trim();
-  const dupe = await prisma.contact.findFirst({
-    where: { ownerId: session.userId, id: { not: contact.id }, name: { equals: name, mode: "insensitive" } },
-  });
+  const dupe = await findContactByNameCI(session.userId, name, contact.id);
   if (dupe) {
     return NextResponse.json(
       { error: `You already have a person named "${dupe.name}" — use a different name, e.g. "${dupe.name} 2".` },

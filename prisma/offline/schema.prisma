@@ -1,0 +1,183 @@
+// Offline-mode schema: identical models to prisma/online/schema.prisma, but
+// backed by SQLite for a single local user with no cloud account. Keep the
+// two schemas' models in sync manually — Prisma doesn't support one schema
+// targeting two datasources.
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../../node_modules/.prisma/offline-client"
+  binaryTargets = ["native", "windows"]
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("OFFLINE_DATABASE_URL")
+}
+
+// A real, login-capable account. In offline mode exactly one row ever
+// exists ("You"), gated by a PIN instead of email/password signup.
+model User {
+  id           String        @id @default(uuid())
+  email        String        @unique
+  passwordHash String
+  name         String
+  baseCurrency String        @default("USD") // used as the default "show in" currency everywhere
+  createdAt    DateTime      @default(now())
+  groupMembers GroupMember[] // every group this account is linked to, via a GroupMember row
+  contacts     Contact[]     // guest identities this user has created (their private "address book")
+}
+
+// A reusable guest identity, owned by one User, shared across their groups.
+model Contact {
+  id           String        @id @default(uuid())
+  ownerId      String
+  owner        User          @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  name         String
+  baseCurrency String        @default("USD")
+  email        String?       // optional contact info, not used for login/auth
+  upiId        String?
+  shareToken   String?       @unique // lazily generated — powers the no-login /share/[token] page
+  createdAt    DateTime      @default(now())
+  groupMembers GroupMember[]
+
+  @@index([ownerId])
+}
+
+model Group {
+  id             String        @id @default(uuid())
+  name           String
+  isPersonal     Boolean       @default(false) // implicit group behind a direct expense, hidden from Groups
+  personalKey    String?       @unique // owner + sorted contact ids
+  defaultCurrency String       @default("USD")
+  simplifyDebts  Boolean       @default(false)
+  createdById    String?       // for the History feed — no FK, just a stamp
+  createdAt      DateTime      @default(now())
+  members        GroupMember[]
+  expenses       Expense[]
+  settlements    Settlement[]
+
+  @@index([createdById])
+}
+
+// A person in a group — may or may not be linked to a real User. All money
+// points here, never directly at User, so a guest can be claimed later.
+// (In offline mode, only the single local User ever fills userId — every
+// other member is necessarily contact-backed, since no second real account
+// can exist locally.)
+model GroupMember {
+  id          String   @id @default(uuid())
+  groupId     String
+  group       Group    @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  userId      String?  // null = guest, not linked to any account
+  user        User?    @relation(fields: [userId], references: [id])
+  contactId   String?  // null = real user (or a one-off guest, pre-migration). Links guests to a reusable identity.
+  contact     Contact? @relation(fields: [contactId], references: [id])
+  displayName String   // snapshot of the name shown, kept in sync with user/contact name
+  createdAt   DateTime @default(now())
+
+  payments         ExpensePayment[]
+  splits           ExpenseSplit[]
+  settlementsFrom  Settlement[]   @relation("SettlementFrom")
+  settlementsTo    Settlement[]   @relation("SettlementTo")
+
+  @@unique([groupId, userId]) // a real account can only appear once per group
+  @@index([userId]) // lookups across every group a user belongs to (userId alone, not paired with groupId)
+  @@index([contactId]) // lookups across every group a contact belongs to
+}
+
+// EQUAL | EXACT | PERCENTAGE | SHARES — kept as a plain string (see
+// src/lib/splits.ts) rather than a Prisma enum, since SQLite has no native
+// enum support and the app never relied on Prisma's generated enum type.
+model Expense {
+  id          String           @id @default(uuid())
+  groupId     String
+  group       Group            @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  description String
+  amount      Decimal
+  currency    String
+  category    String?
+  notes       String?
+  splitType   String           @default("EQUAL")
+  date        DateTime         @default(now()) // invoice date, not when it was entered
+  createdAt   DateTime         @default(now())
+  payments    ExpensePayment[]
+  splits      ExpenseSplit[]
+  history     ExpenseHistory[]
+
+  @@index([groupId])
+}
+
+// One row per expense edit (plus one for creation).
+model ExpenseHistory {
+  id          String   @id @default(uuid())
+  expenseId   String
+  expense     Expense  @relation(fields: [expenseId], references: [id], onDelete: Cascade)
+  changedBy   String
+  actorUserId String?  // for the History feed — no FK, just a stamp
+  summary     String
+  createdAt   DateTime @default(now())
+
+  @@index([expenseId])
+  @@index([actorUserId])
+}
+
+// Who paid, and how much (supports multiple payers per expense).
+model ExpensePayment {
+  id            String      @id @default(uuid())
+  expenseId     String
+  expense       Expense     @relation(fields: [expenseId], references: [id], onDelete: Cascade)
+  groupMemberId String
+  groupMember   GroupMember @relation(fields: [groupMemberId], references: [id])
+  amount        Decimal
+
+  @@index([expenseId])
+  @@index([groupMemberId])
+}
+
+// How much each member owes for an expense.
+model ExpenseSplit {
+  id            String      @id @default(uuid())
+  expenseId     String
+  expense       Expense     @relation(fields: [expenseId], references: [id], onDelete: Cascade)
+  groupMemberId String
+  groupMember   GroupMember @relation(fields: [groupMemberId], references: [id])
+  amount        Decimal
+
+  @@unique([expenseId, groupMemberId])
+  @@index([groupMemberId])
+}
+
+// A payment between two members, not tied to a specific expense.
+model Settlement {
+  id            String      @id @default(uuid())
+  groupId       String
+  group         Group       @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  fromMemberId  String
+  fromMember    GroupMember @relation("SettlementFrom", fields: [fromMemberId], references: [id])
+  toMemberId    String
+  toMember      GroupMember @relation("SettlementTo", fields: [toMemberId], references: [id])
+  amount        Decimal
+  currency      String
+  date          DateTime    @default(now())
+  note          String?
+  recordedById  String?     // for the History feed — no FK, just a stamp
+
+  @@index([groupId])
+  @@index([fromMemberId])
+  @@index([toMemberId])
+  @@index([recordedById])
+}
+
+// A fetched FX snapshot (rates already merged with the static fallback
+// table for currencies frankfurter.dev doesn't cover). One row per
+// fetch; the latest by fetchedAt is authoritative. Offline mode has no
+// connectivity, so this will only ever hold the static fallback table.
+// `rates` is JSON-encoded text (see src/lib/currency.ts) rather than
+// Prisma's Json type, since SQLite has no native JSON column type.
+model ExchangeRateSnapshot {
+  id        String   @id @default(uuid())
+  rates     String
+  fetchedAt DateTime @default(now())
+
+  @@index([fetchedAt])
+}

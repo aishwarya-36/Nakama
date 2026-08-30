@@ -4,6 +4,7 @@ import { prisma } from "@/lib/db";
 import { getSessionFromCookies } from "@/lib/auth";
 import { resolveContact } from "@/lib/contacts";
 import { GROUPS_PAGE_SIZE } from "@/lib/groups";
+import { ciContains } from "@/lib/db-compat";
 
 // GET: list a page of groups the current user belongs to, optionally name-filtered (case-insensitive).
 export async function GET(req: NextRequest) {
@@ -17,7 +18,7 @@ export async function GET(req: NextRequest) {
   const where = {
     isPersonal: false,
     members: { some: { userId: session.userId } },
-    ...(q ? { name: { contains: q, mode: "insensitive" as const } } : {}),
+    ...(q ? { name: ciContains(q) } : {}),
   };
 
   const [total, groups] = await Promise.all([

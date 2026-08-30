@@ -1,4 +1,5 @@
 import { prisma } from "./db";
+import { findContactByNameCI } from "./db-compat";
 
 export interface PersonInput {
   name: string;
@@ -10,9 +11,7 @@ export interface PersonInput {
 export async function resolveContact(ownerId: string, person: PersonInput) {
   const existing = person.contactId
     ? await prisma.contact.findFirst({ where: { id: person.contactId, ownerId } })
-    : await prisma.contact.findFirst({
-        where: { ownerId, name: { equals: person.name.trim(), mode: "insensitive" } },
-      });
+    : await findContactByNameCI(ownerId, person.name.trim());
 
   if (person.contactId && !existing) throw new Error("Contact not found");
 

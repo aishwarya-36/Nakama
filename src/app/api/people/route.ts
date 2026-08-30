@@ -3,6 +3,7 @@ import { z } from "zod";
 import { prisma } from "@/lib/db";
 import { getSessionFromCookies } from "@/lib/auth";
 import { getPeopleWithBalances, PEOPLE_PAGE_SIZE } from "@/lib/people";
+import { findContactByNameCI } from "@/lib/db-compat";
 
 export async function GET(req: NextRequest) {
   const session = getSessionFromCookies();
@@ -40,9 +41,7 @@ export async function POST(req: NextRequest) {
   }
 
   const name = parsed.data.name.trim();
-  const dupe = await prisma.contact.findFirst({
-    where: { ownerId: session.userId, name: { equals: name, mode: "insensitive" } },
-  });
+  const dupe = await findContactByNameCI(session.userId, name);
   if (dupe) {
     return NextResponse.json(
       { error: `You already have a person named "${dupe.name}" — use a different name, e.g. "${dupe.name} 2".` },

@@ -1,5 +1,6 @@
-import { Prisma } from "@prisma/client";
+import { Prisma } from "./db";
 import { prisma } from "./db";
+import { ciContains } from "./db-compat";
 
 export const EXPENSE_RANGES = ["week", "month", "3months", "6months", "year"] as const;
 export type ExpenseRange = (typeof EXPENSE_RANGES)[number];
@@ -79,7 +80,7 @@ async function buildWhere(
   return {
     splits: { some: { groupMemberId: { in: memberIds } } },
     ...(from || to ? { date: { ...(from ? { gte: from } : {}), ...(to ? { lte: to } : {}) } } : {}),
-    ...(q ? { description: { contains: q, mode: "insensitive" } } : {}),
+    ...(q ? { description: ciContains(q) } : {}),
     ...(scope === "mine"
       ? { group: { personalKey: soloKey } }
       : scope === "group"

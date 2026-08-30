@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getSessionFromCookies } from "@/lib/auth";
+import { ciContains } from "@/lib/db-compat";
 
 export async function GET(req: NextRequest) {
   const session = getSessionFromCookies();
@@ -11,7 +12,7 @@ export async function GET(req: NextRequest) {
   const contacts = await prisma.contact.findMany({
     where: {
       ownerId: session.userId,
-      ...(query ? { name: { contains: query, mode: "insensitive" } } : {}),
+      ...(query ? { name: ciContains(query) } : {}),
     },
     include: {
       groupMembers: {

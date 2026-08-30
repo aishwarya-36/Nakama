@@ -2,14 +2,23 @@
   "name": "nakama",
   "version": "1.0.0",
   "private": true,
+  "main": "electron/main.js",
+  "repository": "https://github.com/aishwarya-36/Nakama.git",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "db:migrate": "prisma migrate dev",
-    "db:generate": "prisma generate",
-    "db:studio": "prisma studio"
+    "db:migrate:online": "prisma migrate dev --schema prisma/online/schema.prisma",
+    "db:migrate:offline": "prisma migrate dev --schema prisma/offline/schema.prisma",
+    "db:generate": "npm run db:generate:online && npm run db:generate:offline",
+    "db:generate:online": "prisma generate --schema prisma/online/schema.prisma",
+    "db:generate:offline": "prisma generate --schema prisma/offline/schema.prisma",
+    "db:studio:online": "prisma studio --schema prisma/online/schema.prisma",
+    "db:studio:offline": "prisma studio --schema prisma/offline/schema.prisma",
+    "electron:dev": "NAKAMA_ONLINE_URL=http://localhost:3000 concurrently -k \"npm run dev\" \"wait-on http://localhost:3000 && electron .\"",
+    "electron:prepare": "npm run db:generate && npm run build && node scripts/prepare-standalone.js",
+    "electron:build": "npm run electron:prepare && electron-builder --win nsis"
   },
   "dependencies": {
     "@prisma/client": "^5.19.1",
@@ -29,9 +38,38 @@
     "@types/react": "^18.3.3",
     "@types/react-dom": "^18.3.0",
     "autoprefixer": "^10.4.19",
+    "concurrently": "^10.0.5",
+    "electron": "^44.0.0",
+    "electron-builder": "^26.15.3",
     "postcss": "^8.4.39",
     "prisma": "^5.19.1",
     "tailwindcss": "^3.4.4",
-    "typescript": "^5.5.3"
+    "typescript": "^5.5.3",
+    "wait-on": "^9.1.0"
+  },
+  "build": {
+    "appId": "app.nakama.desktop",
+    "productName": "Nakama",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "electron/main.js",
+      "electron/preload.js"
+    ],
+    "extraResources": [
+      { "from": "electron/resources", "to": "resources" },
+      { "from": ".next/standalone", "to": "standalone" },
+      { "from": "node_modules/.prisma/offline-client", "to": "standalone/node_modules/.prisma/offline-client" }
+    ],
+    "win": {
+      "target": "nsis"
+    },
+    "publish": {
+      "provider": "github",
+      "owner": "aishwarya-36",
+      "repo": "Nakama",
+      "releaseType": "draft"
+    }
   }
 }

@@ -1,18 +1,19 @@
 import { redirect } from "next/navigation";
 import { getSessionFromCookies } from "@/lib/auth";
+import { getAuthPagePath } from "@/lib/appMode";
 import { prisma } from "@/lib/db";
 import Sidebar from "@/components/layout/Sidebar";
 import ToastProvider from "@/components/ui/ToastProvider";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const session = getSessionFromCookies();
-  if (!session) redirect("/login");
+  if (!session) redirect(getAuthPagePath());
 
   const user = await prisma.user.findUnique({
     where: { id: session.userId },
     select: { name: true },
   });
-  if (!user) redirect("/login");
+  if (!user) redirect(getAuthPagePath());
 
   return (
     <ToastProvider>
