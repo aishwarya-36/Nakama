@@ -17,10 +17,15 @@ export default function PersonForm({
   person,
   onSuccess,
   onSaved,
+  onLinked,
 }: {
   person?: EditablePerson;
   onSuccess?: () => void;
   onSaved?: (updated: EditablePerson) => void;
+  // Fires only in edit mode, after a successful account link — the person's
+  // Contact id no longer exists at that point (see /api/people/[id]/link),
+  // so the caller needs to redirect rather than refresh in place.
+  onLinked?: (linkedUserId: string) => void;
 }) {
   const router = useRouter();
   const toast = useToast();
@@ -30,6 +35,40 @@ export default function PersonForm({
   const [email, setEmail] = useState(person?.email || "");
   const [upiId, setUpiId] = useState(person?.upiId || "");
   const [loading, setLoading] = useState(false);
+  const [linking, setLinking] = useState(false);
+  const [linkResult, setLinkResult] = useState<{ status: "idle" | "linked" | "error"; message?: string }>({
+    status: "idle",
+  });
+
+  function onEmailChange(v: string) {
+    setEmail(v);
+    setLinkResult({ status: "idle" });
+  }
+
+  async function handleLink() {
+    const trimmed = email.trim();
+    if (!trimmed) return;
+    setLinking(true);
+    if (isEdit && person) {
+      const result = await apiPost<{ linkedUserId: string }>(`/api/people/${person.id}/link`, { email: trimmed });
+      setLinking(false);
+      if (!result.ok) {
+        setLinkResult({ status: "error", message: result.error || "Couldn't link" });
+        return;
+      }
+      toast.success("Linked to their account");
+      onLinked?.(result.data!.linkedUserId);
+    } else {
+      const res = await fetch(`/api/users/lookup?email=${encodeURIComponent(trimmed)}`);
+      const data = await res.json().catch(() => ({ exists: false }));
+      setLinking(false);
+      if (!data.exists) {
+        setLinkResult({ status: "error", message: "No account found with that email" });
+        return;
+      }
+      setLinkResult({ status: "linked", message: `Linked to ${data.name}` });
+    }
+  }
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -92,13 +131,30 @@ export default function PersonForm({
 
       <div>
         <label className="block text-sm font-medium text-text">Email (optional)</label>
-        <input
-          type="email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          placeholder="name@example.com"
-          className="mt-1 w-full rounded-md border border-border bg-surface px-3 py-2 text-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary/40"
-        />
+        <div className="mt-1 flex gap-2">
+          <input
+            type="email"
+            value={email}
+            onChange={(e) => onEmailChange(e.target.value)}
+            placeholder="name@example.com"
+            className="w-full rounded-md border border-border bg-surface px-3 py-2 text-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary/40"
+          />
+          <button
+            type="button"
+            onClick={handleLink}
+            disabled={!email.trim() || linking}
+            className="shrink-0 rounded-md border border-border px-3 py-2 text-sm font-medium text-text hover:border-border-strong disabled:opacity-60"
+          >
+            {linking ? "Checking…" : "Link"}
+          </button>
+        </div>
+        {linkResult.status === "linked" && <p className="mt-1 text-xs text-success-text">✓ {linkResult.message}</p>}
+        {linkResult.status === "error" && <p className="mt-1 text-xs text-error">{linkResult.message}</p>}
+        {isEdit && (
+          <p className="mt-1 text-xs text-text-faint">
+            Linking connects this person's existing groups and expenses to their real account.
+          </p>
+        )}
       </div>
 
       <div>

@@ -10,7 +10,7 @@ export interface PersonalGroupParticipant {
 // producing the exact same key), or "solo:<ownerId>" for a no-participant
 // solo spend. A real linked user appends a distinguishing suffix so it
 // never collides with an existing contact-only key.
-function buildPersonalKey(ownerId: string, contactIds: string[], userIds: string[]): string {
+export function buildPersonalKey(ownerId: string, contactIds: string[], userIds: string[]): string {
   const base = contactIds.length === 0 ? `solo:${ownerId}` : Array.from(new Set(contactIds)).sort().join(",");
   return userIds.length === 0 ? base : `${base}|u:${Array.from(new Set(userIds)).sort().join(",")}`;
 }

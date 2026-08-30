@@ -28,6 +28,10 @@ export default function PersonSettingsButton({ person }: { person: EditablePerso
             setOpen(false);
             router.refresh();
           }}
+          onLinked={(linkedUserId) => {
+            setOpen(false);
+            router.push(`/people/user:${linkedUserId}`);
+          }}
         />
       </Modal>
     </>
