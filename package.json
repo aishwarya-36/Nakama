@@ -5,6 +5,7 @@
   "main": "electron/main.js",
   "repository": "https://github.com/aishwarya-36/Nakama.git",
   "scripts": {
+    "postinstall": "npm run db:generate",
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
